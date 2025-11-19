@@ -1,33 +1,51 @@
 if game.PlaceId == 8204899140 then
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
     local LocalPlayer = Players.LocalPlayer
     local HandshakeRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CharacterSoundEvent")
     local GarbageCollection = getgc(true)
-
     local HandshakeData = nil
     local HandshakeFunction = nil
     local AnticheatString = nil
-
     local function Iterator(t, f)
         for k,v in pairs(t) do f(k,v) end
     end
+    local FastWait = function(d) return task.wait(d or (1/240)) end
 
-    local FastWait = function(d)
-        return task.wait(d or (1 / 240))
+    local candidates = {}
+    for i=1, #GarbageCollection do
+        local item = GarbageCollection[i]
+        local t = type(item)
+        if t == "table" then
+            local mt = getrawmetatable(item)
+            if mt and rawget(mt, "__call") then
+                HandshakeFunction = item
+            end
+        elseif t == "function" then
+            if #candidates < 800 then
+                candidates[#candidates+1] = item
+            end
+        end
     end
 
-    local mt = getrawmetatable(game)
-    setreadonly(mt, false)
+    if HandshakeData and getrawmetatable(HandshakeData) then
+        local mt = getrawmetatable(HandshakeData)
+        if mt then
+            mt.__tostring = nil
+            mt.__metatable = nil
+            mt.__index = nil
+            mt.__eq = nil
+        end
+    end
 
-    local old_namecall = mt.__namecall
-    mt.__namecall = newcclosure(function(self, ...)
+    local mt_game = getrawmetatable(game)
+    setreadonly(mt_game, false)
+    local old_namecall = mt_game.__namecall
+    mt_game.__namecall = newcclosure(function(self, ...)
         local m = getnamecallmethod()
         local a = {...}
-
         if not checkcaller() and m == "fireServer" and self.Name == "CharacterSoundEvent" then
-            if string.find(a[1], "AC") then
+            if type(a[1]) == "string" and string.find(a[1], "AC") then
                 if rawequal(type(a[2]), "table") then
                     AnticheatString = a[1]
                     HandshakeData = a[2]
@@ -37,28 +55,29 @@ if game.PlaceId == 8204899140 then
                 end
             end
         end
-
         return old_namecall(self, ...)
     end)
+    setreadonly(mt_game, true)
 
-    setreadonly(mt, true)
-
-    Iterator(GarbageCollection, function(_, item)
-        if type(item) == "table" and getrawmetatable(item) and rawget(getrawmetatable(item), "__call") then
-            HandshakeFunction = item
-        end
-    end)
-
-    if HandshakeData and getrawmetatable(HandshakeData) then
-        local mt2 = getrawmetatable(HandshakeData)
-        mt2.__tostring = nil
-        mt2.__metatable = nil
-        mt2.__index = nil
-        mt2.__eq = nil
+    local function safe_debug_info(f, what)
+        local ok, res = pcall(debug.info, f, what)
+        if ok then return res end
+        return nil
     end
 
-    local old_debug
-    old_debug = hookfunction(debug.info, newcclosure(function(...)
+    local playermodule_lines = {42,51,61}
+    for i=1, #candidates do
+        local fn = candidates[i]
+        local s = safe_debug_info(fn, "s")
+        if s and string.find(s, "PlayerModule.LocalScript") then
+            local l = safe_debug_info(fn, "l")
+            if l and table.find(playermodule_lines, l) then
+                hookfunction(fn, function(...) return task.wait(9e9) end)
+            end
+        end
+    end
+
+    local old_debug = hookfunction(debug.info, newcclosure(function(...)
         local a = {...}
         if not checkcaller() and a[1] == 2 and a[2] == "s" then
             return "LocalScript"
@@ -66,34 +85,21 @@ if game.PlaceId == 8204899140 then
         return old_debug(...)
     end))
 
-    local call = rawget(getrawmetatable(HandshakeFunction), "__call")
-    rawset(getrawmetatable(HandshakeFunction), "__tostring", nil)
-
-    rawset(getrawmetatable(HandshakeFunction), "__call", function(self, ...)
-        local v1,v2,v3,v4,v5 = ...
-
-        if
-            (v1 == 655 and v2 == 775 and v3 == 724 and v4 == 633 and v5 == 891) or
-            (v1 == 760 and v2 == 760 and v3 == 771 and v4 == 665 and v5 == 898) or
-            (v1 == 660 and v2 == 759 and v3 == 751 and v4 == 863 and v5 == 771)
-        then
-            return call(self, ...)
-        end
-    end)
-
-    Iterator(GarbageCollection, function(_, fn)
-        if type(fn) == "function" then
-            local s = debug.info(fn, "s")
-            local l = debug.info(fn, "l")
-            if s and string.find(s, "PlayerModule.LocalScript") then
-                if table.find({42,51,61}, l) then
-                    hookfunction(fn, function(...)
-                        return task.wait(9e9)
-                    end)
-                end
+    if HandshakeFunction then
+        local hf_mt = getrawmetatable(HandshakeFunction)
+        local orig_call = rawget(hf_mt, "__call")
+        rawset(hf_mt, "__tostring", nil)
+        rawset(hf_mt, "__call", function(self, ...)
+            local v1,v2,v3,v4,v5 = ...
+            if
+                (v1 == 655 and v2 == 775 and v3 == 724 and v4 == 633 and v5 == 891) or
+                (v1 == 760 and v2 == 760 and v3 == 771 and v4 == 665 and v5 == 898) or
+                (v1 == 660 and v2 == 759 and v3 == 751 and v4 == 863 and v5 == 771)
+            then
+                return orig_call(self, ...)
             end
-        end
-    end)
+        end)
+    end
 
     task.spawn(function()
         while task.wait(0.5) do
@@ -107,6 +113,15 @@ if game.PlaceId == 8204899140 then
     local hrp = char:WaitForChild("HumanoidRootPart")
     local lastPos = LocalPlayer:WaitForChild("LastPos")
     local pos = hrp.Position.X
+
+    task.spawn(function()
+        while task.wait(0.15) do
+            local c = LocalPlayer.Character
+            if c and c:FindFirstChild("HumanoidRootPart") then
+                pos = c.HumanoidRootPart.Position.X
+            end
+        end
+    end)
 
     local old_index
     old_index = hookmetamethod(game, "__index", function(self, key)
@@ -124,6 +139,10 @@ if game.PlaceId == 8204899140 then
         return old_newindex(self, key, value)
     end)
 end
+
+task.wait()
+
+print("ac raped")
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
@@ -143,7 +162,7 @@ Library.Theme = DLCFootBallFusion2Theme
 Library.ShowCustomCursor = false
 
 local Window = Library:CreateWindow({
-    Title = "ðŸ¦ƒDLCFootBallFusion2",
+    Title = "🦃DLCFootBallFusion2",
     Footer = "version: 2.0",
     Icon = nil,
     NotifySide = "Right",
@@ -187,17 +206,17 @@ local NoobAvatar = Tabs.Meme:AddLeftGroupbox("NoobAvatar")
 local DiscoScreen = Tabs.Meme:AddRightGroupbox("DiscoScreen")
 local FlameHead = Tabs.Meme:AddLeftGroupbox("FlameHead")
 
-Updates:AddLabel("â€¢ Added Full QB Aimbot System")
-Updates:AddLabel("â€¢ Added CFrame WalkSpeed")
-Updates:AddLabel("â€¢ Added Magnets with Hitbox")
-Updates:AddLabel("â€¢ Added Auto Rush & Auto QB")
-Updates:AddLabel("â€¢ Added Physics Tab (Reach, Quick TP)")
-Updates:AddLabel("â€¢ Added Visual Effects & Lighting")
-Updates:AddLabel("â€¢ Added Trolling Features")
-Updates:AddLabel("â€¢ Complete Reorganization")
+Updates:AddLabel("• Added Full QB Aimbot System")
+Updates:AddLabel("• Added CFrame WalkSpeed")
+Updates:AddLabel("• Added Magnets with Hitbox")
+Updates:AddLabel("• Added Auto Rush & Auto QB")
+Updates:AddLabel("• Added Physics Tab (Reach, Quick TP)")
+Updates:AddLabel("• Added Visual Effects & Lighting")
+Updates:AddLabel("• Added Trolling Features")
+Updates:AddLabel("• Complete Reorganization")
 
-Removed:AddLabel('â€¢ Removed Old Mags System')
-Removed:AddLabel("â€¢ Cleaned Up Old Code")
+Removed:AddLabel('• Removed Old Mags System')
+Removed:AddLabel("• Cleaned Up Old Code")
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -679,7 +698,7 @@ QBAimbot:AddToggle("QBEnabled", {
         enabled = Value
         if Value then
             Library:Notify({
-                Title = "ðŸŽ¯ QB Aimbot",
+                Title = "🎯 QB Aimbot",
                 Description = "Aimbot Enabled!",
                 Time = 2
             })
@@ -1720,7 +1739,7 @@ AutoCap:AddToggle("AutoCapEnabled", {
         getgenv().autocapon = v
         if v then
             Library:Notify({
-                Title = "ðŸŽ© Auto Captain",
+                Title = "🎩 Auto Captain",
                 Description = "Auto Captain Enabled!",
                 Time = 2
             })
@@ -1893,7 +1912,7 @@ AutoRush:AddToggle("AutoRushEnabled", {
         getgenv().AutoRushOn = v
         if v then
             Library:Notify({
-                Title = "ðŸƒ Auto Rush",
+                Title = "🏃 Auto Rush",
                 Description = "Auto Rush Enabled!",
                 Time = 2
             })
@@ -1966,7 +1985,7 @@ AutoQB:AddToggle("AutoQBEnabled", {
         getgenv().autoQBEnabled = v
         if v then
             Library:Notify({
-                Title = "ðŸˆ Auto QB",
+                Title = "🏈 Auto QB",
                 Description = "Auto QB Enabled!",
                 Time = 2
             })
@@ -2552,7 +2571,7 @@ TrollingMain:AddButton("ApplyJersey", {
                 end
             end
             Library:Notify({
-                Title = "ðŸ‘• Jersey Applied",
+                Title = "👕 Jersey Applied",
                 Description = "Jersey customized successfully!",
                 Time = 2
             })
@@ -2647,9 +2666,9 @@ getgenv().glemo_messages = {
     "That route? Comedy.",
     "I've seen better moves in Minecraft",
     "You play like you're on 1 bar",
-    "Bro still buffering ðŸ’€",
+    "Bro still buffering 💀",
     "Outplayed by a shadow clone",
-    "Skill loadingâ€¦ please wait",
+    "Skill loading… please wait",
     "Your highlight reel is 0 bytes",
     "Keyboard must be stuck",
     "Ping carried you there",
@@ -3178,7 +3197,7 @@ while true do
         gui.Cards.Mode.Mode.Text = passType
         gui.Cards.Target.Target.Text = target.Name
         gui.Cards.Airtime.Airtime.Text = string.format("%.2f s", t)
-        gui.Cards.Angle.Angle.Text = launchAngle and string.format("%.1fÂ°", launchAngle) or "N/A"
+        gui.Cards.Angle.Angle.Text = launchAngle and string.format("%.1f°", launchAngle) or "N/A"
     else
         highlight.Parent = nil
         gui.Enabled = false
@@ -3201,7 +3220,7 @@ ThemeManager:ApplyToTab(Tabs["Misc Settings"])
 
 -- FINAL NOTIFICATION
 Library:Notify({
-    Title = "ðŸ¦ƒ DLC Football Fusion 2",
+    Title = "🦃 DLC Football Fusion 2",
     Description = "Script loaded successfully! Version 2.0 - All Features Fixed",
     Time = 5
 })
