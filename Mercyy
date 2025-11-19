@@ -14,63 +14,59 @@ if game.PlaceId == 8204899140 then
         for k,v in pairs(t) do f(k,v) end
     end
 
-    local FastWait = function(Delay)
-        return task.wait(Delay or (1 / 240))
+    local FastWait = function(d)
+        return task.wait(d or (1 / 240))
     end
 
-    local ClonedMT = getrawmetatable(game)
-    setreadonly(ClonedMT, false)
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
 
-    local __namecall = ClonedMT.__namecall
-    ClonedMT.__namecall = newcclosure(function(self, ...)
-        local Method = getnamecallmethod()
-        local Args = {...}
+    local old_namecall = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
+        local m = getnamecallmethod()
+        local a = {...}
 
-        if not checkcaller() and Method == "fireServer" and self.Name == "CharacterSoundEvent" then
-            if string.find(Args[1], "AC") then
-                if rawequal(type(Args[2]), "table") then
-                    AnticheatString = Args[1]
-                    HandshakeData = Args[2]
+        if not checkcaller() and m == "fireServer" and self.Name == "CharacterSoundEvent" then
+            if string.find(a[1], "AC") then
+                if rawequal(type(a[2]), "table") then
+                    AnticheatString = a[1]
+                    HandshakeData = a[2]
                     return task.wait(9e9)
-
-                elseif Args[2] == "error" then
+                elseif a[2] == "error" then
                     return coroutine.yield()
                 end
             end
         end
 
-        return __namecall(self, ...)
+        return old_namecall(self, ...)
     end)
 
-    setreadonly(ClonedMT, true)
+    setreadonly(mt, true)
 
-    Iterator(GarbageCollection, function(_, Item)
-        if type(Item) == "table" and getrawmetatable(Item) and rawget(getrawmetatable(Item), "__call") then
-            HandshakeFunction = Item
+    Iterator(GarbageCollection, function(_, item)
+        if type(item) == "table" and getrawmetatable(item) and rawget(getrawmetatable(item), "__call") then
+            HandshakeFunction = item
         end
     end)
 
     if HandshakeData and getrawmetatable(HandshakeData) then
-        local mt = getrawmetatable(HandshakeData)
-        if mt.__tostring then
-            mt.__tostring = nil
-            mt.__metatable = nil
-            mt.__index = nil
-            mt.__eq = nil
-        end
+        local mt2 = getrawmetatable(HandshakeData)
+        mt2.__tostring = nil
+        mt2.__metatable = nil
+        mt2.__index = nil
+        mt2.__eq = nil
     end
 
-    local debug_info
-    debug_info = hookfunction(debug.info, newcclosure(function(...)
-        local Args = {...}
-        if not checkcaller() and Args[1] == 2 and Args[2] == "s" then
+    local old_debug
+    old_debug = hookfunction(debug.info, newcclosure(function(...)
+        local a = {...}
+        if not checkcaller() and a[1] == 2 and a[2] == "s" then
             return "LocalScript"
         end
-        return debug_info(...)
+        return old_debug(...)
     end))
 
-
-    local __call = rawget(getrawmetatable(HandshakeFunction), "__call")
+    local call = rawget(getrawmetatable(HandshakeFunction), "__call")
     rawset(getrawmetatable(HandshakeFunction), "__tostring", nil)
 
     rawset(getrawmetatable(HandshakeFunction), "__call", function(self, ...)
@@ -81,19 +77,17 @@ if game.PlaceId == 8204899140 then
             (v1 == 760 and v2 == 760 and v3 == 771 and v4 == 665 and v5 == 898) or
             (v1 == 660 and v2 == 759 and v3 == 751 and v4 == 863 and v5 == 771)
         then
-            return __call(self, ...)
+            return call(self, ...)
         end
     end)
-    
 
-    Iterator(GarbageCollection, function(_, Item)
-        if type(Item) == "function" then
-            local Script = debug.info(Item, "s")
-            local Line = debug.info(Item, "l")
-
-            if Script and string.find(Script, "PlayerModule.LocalScript") then
-                if table.find({42,51,61}, Line) then
-                    hookfunction(Item, function(...)
+    Iterator(GarbageCollection, function(_, fn)
+        if type(fn) == "function" then
+            local s = debug.info(fn, "s")
+            local l = debug.info(fn, "l")
+            if s and string.find(s, "PlayerModule.LocalScript") then
+                if table.find({42,51,61}, l) then
+                    hookfunction(fn, function(...)
                         return task.wait(9e9)
                     end)
                 end
