@@ -1,0 +1,3080 @@
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+
+-- Apply custom theme BEFORE creating window
+local DLCFootBallFusion2Theme = {
+    FontColor = Color3.fromRGB(230, 230, 255),
+    MainColor = Color3.fromRGB(150, 60, 255),
+    AccentColor = Color3.fromRGB(180, 90, 255),
+    BackgroundColor = Color3.fromRGB(15, 15, 20),
+    OutlineColor = Color3.fromRGB(100, 50, 150),
+    FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+}
+
+-- Set theme before window creation
+Library.Theme = DLCFootBallFusion2Theme
+Library.ShowCustomCursor = false
+
+local Window = Library:CreateWindow({
+    Title = "ðŸ¦ƒDLCFootBallFusion2",
+    Footer = "version: 2.0",
+    Icon = nil,
+    NotifySide = "Right",
+})
+
+local Tabs = {
+    Main = Window:AddTab("Main", "house"),
+    Catching = Window:AddTab("Catching", "hand-grab"),
+    QBPassing = Window:AddTab("QB Passing", "target"),
+    Visual = Window:AddTab("Visual", "eye"),
+    Player = Window:AddTab("Player", "user-round"),
+    Physics = Window:AddTab("Physics", "atom"),
+    Automatics = Window:AddTab("Automatics", "bot"),
+    Trolling = Window:AddTab("Trolling", "smile"),
+    Meme = Window:AddTab("Meme", "party-popper"),
+    ["Misc Settings"] = Window:AddTab("Misc Settings", "wrench"),
+}
+
+local Updates = Tabs.Main:AddLeftGroupbox("What's New?")
+local Removed = Tabs.Main:AddRightGroupbox("What's Removed?")
+local Magnets = Tabs.Catching:AddLeftGroupbox("Magnets")
+local CatchingExtra = Tabs.Catching:AddRightGroupbox("Extra")
+local BallResize = Tabs.Catching:AddRightGroupbox("Ball Resize")
+local QBAimbot = Tabs.QBPassing:AddLeftGroupbox("QB Aimbot")
+local QBSettings = Tabs.QBPassing:AddRightGroupbox("QB Settings")
+local Speed = Tabs.Player:AddLeftGroupbox("Speed")
+local JumpPower = Tabs.Player:AddRightGroupbox("JumpPower")
+local PlayerExtra = Tabs.Player:AddRightGroupbox("Extra")
+local VisualESP = Tabs.Visual:AddLeftGroupbox("ESP")
+local VisualEffects = Tabs.Visual:AddRightGroupbox("Visual Effects")
+local Lighting = Tabs.Visual:AddRightGroupbox("Lighting")
+local PhysicsReach = Tabs.Physics:AddLeftGroupbox("Reach")
+local PhysicsTP = Tabs.Physics:AddRightGroupbox("Quick TP")
+local PhysicsExtra = Tabs.Physics:AddRightGroupbox("Extra")
+local AutoCap = Tabs.Automatics:AddLeftGroupbox("Auto Captain")
+local AutoRush = Tabs.Automatics:AddRightGroupbox("Auto Rush")
+local AutoQB = Tabs.Automatics:AddRightGroupbox("Auto QB")
+local TrollingMain = Tabs.Trolling:AddLeftGroupbox("Trolling")
+local TrollingExtra = Tabs.Trolling:AddRightGroupbox("Extra")
+local NoobAvatar = Tabs.Meme:AddLeftGroupbox("NoobAvatar")
+local DiscoScreen = Tabs.Meme:AddRightGroupbox("DiscoScreen")
+local FlameHead = Tabs.Meme:AddLeftGroupbox("FlameHead")
+
+Updates:AddLabel("â€¢ Added Full QB Aimbot System")
+Updates:AddLabel("â€¢ Added CFrame WalkSpeed")
+Updates:AddLabel("â€¢ Added Magnets with Hitbox")
+Updates:AddLabel("â€¢ Added Auto Rush & Auto QB")
+Updates:AddLabel("â€¢ Added Physics Tab (Reach, Quick TP)")
+Updates:AddLabel("â€¢ Added Visual Effects & Lighting")
+Updates:AddLabel("â€¢ Added Trolling Features")
+Updates:AddLabel("â€¢ Complete Reorganization")
+
+Removed:AddLabel('â€¢ Removed Old Mags System')
+Removed:AddLabel("â€¢ Cleaned Up Old Code")
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local LightingService = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local player = LocalPlayer
+local userInputService = UserInputService
+local mouse = player:GetMouse()
+
+local g = getgenv()
+g.magnetEnabled = false
+g.magnetRange = 0
+g.currentMode = "Regular"
+g.ping = 0.1
+g.armResizeEnabled = false
+g.armResizeSize = 3
+g.hitboxEnabled = false
+g.hitboxType = "Forcefield"
+g.rainbowHitboxEnabled = false
+g.rainbowSpeed = 2
+g.rainbowHue = 0
+g.BallResizeOn = false
+g.BallResizeSize = 1
+
+local enabled = false
+local autoAngle = false
+local beamMode = false
+local leadDistanceVariable = 0
+local heightDistanceVariable = 0
+local dimeLead = 11
+local MagLead = 12.5
+local bulletLead = 4
+local passType = "Dime"
+local locked = false
+local target = nil
+
+local moveToUsing = {}
+local walkType = "None"
+local walkSpeed = 20
+local cframeSpeed = 0
+local speedEnabled = false
+local running = false
+local taskThread
+
+local highlight = Instance.new("Highlight")
+highlight.FillColor = Color3.fromRGB(82, 206, 255)
+highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+
+local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment") 
+a0.Parent = workspace.Terrain 
+a1.Parent = workspace.Terrain
+
+local beam = Instance.new("Beam", workspace.Terrain)
+beam.Attachment0 = a0
+beam.Attachment1 = a1
+beam.Segments = 500
+beam.Width0 = 0.5
+beam.Width1 = 0.5
+beam.Transparency = NumberSequence.new(0)
+beam.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 50, 150)), 
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+})
+beam.Texture = "http://www.roblox.com/asset/?id=0"
+
+local data = {
+    Angle = 40,
+    Power = 0,
+    Direction = Vector3.new(0, 0, 0)
+}
+
+local passTypeLeads = {
+    ["Dime"] = dimeLead,
+    ["Mag"] = MagLead,
+    ["Bullet"] = bulletLead
+}
+
+local passTypeSwitch = {
+    ["Dime"] = "Bullet",
+    ["Bullet"] = "Mag",
+    ["Mag"] = "Dime"
+}
+
+local ANGLE_WARNING_THRESHOLD = 35 
+local ANGLE_DANGER_THRESHOLD = 50
+
+local modeRanges = {
+    Custom = 0,
+    Legit = 7.5,
+    League = 5,
+    Regular = 13.5,
+    Rage = 25
+}
+
+local hitboxes = {}
+local velocity = {}
+local lastBallPositions = {}
+
+local function getRange()
+    return g.currentMode == "Custom" and g.magnetRange or modeRanges[g.currentMode]
+end
+
+local function findFootballs()
+    local balls = {}
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("BasePart") and obj.Name == "Football" and not obj.Anchored then
+            table.insert(balls, obj)
+        end
+    end
+    return balls
+end
+
+local function getNearestPartToPartFromParts(ref, parts)
+    local closest, dist = nil, math.huge
+    for _, p in pairs(parts) do
+        local d = (ref.Position - p.Position).Magnitude
+        if d < dist then
+            dist, closest = d, p
+        end
+    end
+    return closest
+end
+
+local function updateRainbowHitboxColor()
+    g.rainbowHue = (g.rainbowHue + (g.rainbowSpeed / 255)) % 1
+    return Color3.fromHSV(g.rainbowHue, 1, 1)
+end
+
+local function createOrUpdateHitbox(ball)
+    local size = getRange()
+    local hitbox = hitboxes[ball]
+
+    if not hitbox then
+        hitbox = Instance.new("Part")
+        hitbox.Anchored = true
+        hitbox.CanCollide = false
+        hitbox.Name = "Hitbox"
+        hitbox.Parent = ball.Parent
+        hitboxes[ball] = hitbox
+    end
+
+    hitbox.Size = Vector3.new(size, size, size)
+    hitbox.CFrame = ball.CFrame
+
+    for _, v in ipairs(hitbox:GetChildren()) do
+        if v:IsA("SelectionBox") or v:IsA("SelectionSphere") then
+            v:Destroy()
+        end
+    end
+
+    if g.rainbowHitboxEnabled then
+        hitbox.Shape = Enum.PartType.Ball
+        hitbox.Material = Enum.Material.ForceField
+        hitbox.Color = updateRainbowHitboxColor()
+        hitbox.Transparency = 0.3
+    elseif g.hitboxType == "Forcefield" then
+        hitbox.Shape = Enum.PartType.Ball
+        hitbox.Material = Enum.Material.ForceField
+        hitbox.Color = Color3.fromRGB(50, 205, 50)
+        hitbox.Transparency = 0.3
+    elseif g.hitboxType == "Sphere" then
+        hitbox.Shape = Enum.PartType.Ball
+        hitbox.Material = Enum.Material.SmoothPlastic
+        hitbox.Color = Color3.fromRGB(50, 205, 50)
+        hitbox.Transparency = 1
+        local outline = Instance.new("SelectionSphere")
+        outline.Adornee = hitbox
+        outline.SurfaceColor3 = Color3.fromRGB(50, 205, 50)
+        outline.SurfaceTransparency = 0.3
+        outline.Parent = hitbox
+    elseif g.hitboxType == "Box" then
+        hitbox.Shape = Enum.PartType.Block
+        hitbox.Material = Enum.Material.SmoothPlastic
+        hitbox.Color = Color3.fromRGB(120, 120, 120)
+        hitbox.Transparency = 0.65
+        local outline = Instance.new("SelectionBox")
+        outline.Adornee = hitbox
+        outline.LineThickness = 0.05
+        outline.Color3 = Color3.fromRGB(120, 120, 120)
+        outline.Transparency = 0.6
+        outline.Parent = hitbox
+    end
+end
+
+local function clearHitbox(ball)
+    if hitboxes[ball] then
+        hitboxes[ball]:Destroy()
+        hitboxes[ball] = nil
+    end
+end
+
+Workspace.ChildRemoved:Connect(function(obj)
+    if hitboxes[obj] then
+        clearHitbox(obj)
+        velocity[obj] = nil
+        lastBallPositions[obj] = nil
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function(c)
+    Character = c
+end)
+
+RunService.Heartbeat:Connect(function(dt)
+    if not Character then return end
+
+    local leftCatch = Character:FindFirstChild("CatchLeft")
+    local rightCatch = Character:FindFirstChild("CatchRight")
+    if not leftCatch or not rightCatch then return end
+
+    local balls = findFootballs()
+    local range = getRange()
+
+    if g.armResizeEnabled then
+        local newSize = Vector3.new(g.armResizeSize, g.armResizeSize, g.armResizeSize)
+        leftCatch.Size, rightCatch.Size = newSize, newSize
+    else
+        leftCatch.Size = Vector3.new(1, 1, 1)
+        rightCatch.Size = Vector3.new(1, 1, 1)
+    end
+
+    for _, ball in ipairs(balls) do
+        if g.BallResizeOn then
+            ball.Size = Vector3.new(g.BallResizeSize, g.BallResizeSize, g.BallResizeSize)
+            ball.CanCollide = false
+        end
+
+        local lastPos = lastBallPositions[ball] or ball.Position
+        velocity[ball] = (ball.Position - lastPos) / dt
+        lastBallPositions[ball] = ball.Position
+
+        if g.hitboxEnabled or g.rainbowHitboxEnabled then
+            createOrUpdateHitbox(ball)
+        else
+            clearHitbox(ball)
+        end
+
+        if g.magnetEnabled then
+            local predictedPos = ball.Position + (velocity[ball] or Vector3.zero) * g.ping
+            local nearestCatch = getNearestPartToPartFromParts(ball, {leftCatch, rightCatch})
+            if nearestCatch and (nearestCatch.Position - predictedPos).Magnitude <= range then
+                firetouchinterest(leftCatch, ball, 0)
+                firetouchinterest(leftCatch, ball, 1)
+                firetouchinterest(rightCatch, ball, 0)
+                firetouchinterest(rightCatch, ball, 1)
+            end
+        end
+    end
+end)
+
+-- MAGNETS SECTION
+Magnets:AddToggle("MagnetsEnabled", {
+    Text = "Enable Magnets",
+    Default = false,
+    Callback = function(v)
+        g.magnetEnabled = v
+    end,
+})
+
+Magnets:AddSlider("MagnetsRange", {
+    Text = "Magnets Range",
+    Default = 0,
+    Min = 0,
+    Max = 25,
+    Rounding = 1,
+    Suffix = " studs",
+    Callback = function(v)
+        g.magnetRange = v
+    end,
+})
+
+Magnets:AddDropdown("MagnetsType", {
+    Text = "Magnets Type",
+    Values = {"Regular", "League", "Legit", "Rage", "Custom"},
+    Default = 1,
+    Callback = function(v)
+        g.currentMode = v
+        if v == "Rage" then
+            g.armResizeEnabled = true
+            g.armResizeSize = 15
+            g.BallResizeOn = true
+            g.BallResizeSize = 15
+        else
+            g.armResizeEnabled = false
+            g.armResizeSize = 3
+            g.BallResizeOn = false
+            g.BallResizeSize = 1
+        end
+    end,
+})
+
+Magnets:AddToggle("MagnetHitbox", {
+    Text = "Show Magnet Hitbox",
+    Default = false,
+    Callback = function(v)
+        g.hitboxEnabled = v
+    end,
+})
+
+Magnets:AddDropdown("HitboxType", {
+    Text = "Hitbox Type",
+    Values = {"Forcefield", "Sphere", "Box"},
+    Default = 1,
+    Callback = function(v)
+        g.hitboxType = v
+    end,
+})
+
+Magnets:AddToggle("RainbowHitbox", {
+    Text = "Rainbow Hitbox",
+    Default = false,
+    Callback = function(v)
+        g.rainbowHitboxEnabled = v
+    end,
+})
+
+Magnets:AddSlider("RainbowSpeed", {
+    Text = "Rainbow Speed",
+    Default = 2,
+    Min = 0.5,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(v)
+        g.rainbowSpeed = v
+    end,
+})
+
+-- FREEZE ON CATCH SECTION (FIXED)
+getgenv().freezeEnabled = false
+getgenv().freezeDuration = 2
+
+local freezeActive = false
+local monitorRunning = false
+
+local function freezeCharacter()
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+    if not humanoidRootPart or not humanoid then return end
+
+    freezeActive = true
+    humanoid.PlatformStand = true
+    humanoidRootPart.Anchored = true
+
+    task.delay(getgenv().freezeDuration, function()
+        if freezeActive then
+            freezeActive = false
+            humanoid.PlatformStand = false
+            humanoidRootPart.Anchored = false
+        end
+    end)
+end
+
+local function unfreezeCharacter()
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+    if humanoid and humanoidRootPart then
+        humanoid.PlatformStand = false
+        humanoidRootPart.Anchored = false
+    end
+end
+
+local function checkForFootballInHand()
+    local character = LocalPlayer.Character
+    if not character then return false end  
+
+    for _, obj in pairs(character:GetChildren()) do
+        if obj:IsA("Tool") and obj.Name:lower():find("football") then
+            return true
+        end
+    end
+    return false
+end
+
+local function startFootballMonitor()
+    if monitorRunning then return end
+    monitorRunning = true
+
+    task.spawn(function()
+        while getgenv().freezeEnabled do
+            if checkForFootballInHand() then
+                freezeCharacter()
+
+                while getgenv().freezeEnabled and checkForFootballInHand() do
+                    task.wait(0.1)
+                end
+
+                if not freezeActive then
+                    unfreezeCharacter()
+                end
+            end
+            task.wait(0.1)
+        end
+
+        monitorRunning = false
+    end)
+end
+
+CatchingExtra:AddToggle("FreezeOnCatch", {
+    Text = "Freeze On Catch",
+    Default = false,
+    Callback = function(v)
+        getgenv().freezeEnabled = v
+        if v then
+            startFootballMonitor()
+        else
+            unfreezeCharacter()
+        end
+    end
+})
+
+CatchingExtra:AddSlider("FreezeDuration", {
+    Text = "Freeze Duration",
+    Default = 2,
+    Min = 0,
+    Max = 4,
+    Rounding = 1,
+    Suffix = " seconds",
+    Callback = function(v)
+        getgenv().freezeDuration = v
+    end
+})
+
+CatchingExtra:AddToggle("ArmResize", {
+    Text = "Arm Resizement",
+    Default = false,
+    Callback = function(v)
+        g.armResizeEnabled = v
+    end,
+})
+
+CatchingExtra:AddSlider("ArmSize", {
+    Text = "Arm Size",
+    Default = 3,
+    Min = 1,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        g.armResizeSize = v
+    end,
+})
+
+BallResize:AddToggle("BallResizeEnabled", {
+    Text = "Ball Resize",
+    Default = false,
+    Callback = function(v)
+        g.BallResizeOn = v
+    end,
+})
+
+BallResize:AddSlider("BallSize", {
+    Text = "Ball Size",
+    Default = 1,
+    Min = 0.1,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        g.BallResizeSize = v
+    end,
+})
+
+-- QB AIMBOT SECTION (Keeping all original QB logic)
+QBAimbot:AddToggle("QBEnabled", {
+    Text = "Enable QB Aimbot",
+    Default = false,
+    Callback = function(Value)
+        enabled = Value
+        if Value then
+            Library:Notify({
+                Title = "ðŸŽ¯ QB Aimbot",
+                Description = "Aimbot Enabled!",
+                Time = 2
+            })
+        end
+    end
+})
+
+QBAimbot:AddToggle("AutoAngle", {
+    Text = "Auto Angle",
+    Default = false,
+    Callback = function(Value)
+        autoAngle = Value
+    end
+})
+
+QBAimbot:AddToggle("BeamMode", {
+    Text = "Beam Mode",
+    Default = false,
+    Callback = function(Value)
+        beamMode = Value
+    end
+})
+
+QBAimbot:AddSlider("LeadDistance", {
+    Text = "Lead Distance",
+    Default = 0,
+    Min = 0,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        leadDistanceVariable = v
+    end
+})
+
+QBAimbot:AddSlider("HeightDistance", {
+    Text = "Height Distance",
+    Default = 0,
+    Min = 0,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        heightDistanceVariable = v
+    end
+})
+
+QBSettings:AddSlider("DimeLead", {
+    Text = "Dime Lead",
+    Default = 11,
+    Min = 0,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        dimeLead = v
+        passTypeLeads["Dime"] = v
+    end
+})
+
+QBSettings:AddSlider("MagLead", {
+    Text = "Mag Lead",
+    Default = 12.5,
+    Min = 0,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        MagLead = v
+        passTypeLeads["Mag"] = v
+    end
+})
+
+QBSettings:AddSlider("BulletLead", {
+    Text = "Bullet Lead",
+    Default = 4,
+    Min = 0,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(v)
+        bulletLead = v
+        passTypeLeads["Bullet"] = v
+    end
+})
+
+QBSettings:AddLabel("Press Q to Lock Target")
+QBSettings:AddLabel("Press Z to Switch Pass Type")
+
+-- SPEED SECTION (FIXED CFrame Speed)
+Speed:AddToggle("SpeedEnabled", {
+    Text = "Speed Enabled",
+    Default = false,
+    Callback = function(v)
+        speedEnabled = v
+
+        if not v then
+            running = false
+            if taskThread then
+                task.cancel(taskThread)
+                taskThread = nil
+            end
+        elseif walkType == "CFrame Speed" and not taskThread then
+            running = true
+            taskThread = task.spawn(function()
+                while running and speedEnabled do
+                    task.wait()
+                    local character = player.Character
+                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = character and character:FindFirstChild("Humanoid")
+                    if not hrp or not humanoid then continue end
+
+                    local lastMove = moveToUsing[#moveToUsing] or 0
+                    local moveDir = ((os.clock() - lastMove) < 0.5 and (humanoid.WalkToPoint - hrp.Position).Unit) or humanoid.MoveDirection
+                    hrp.CFrame += moveDir * (cframeSpeed / 58.5)
+                end
+            end)
+        end
+    end
+})
+
+Speed:AddDropdown("SpeedType", {
+    Text = "Speed Type",
+    Values = {"None", "Regular WalkSpeed", "CFrame Speed"},
+    Default = 1,
+    Callback = function(v)
+        walkType = v
+
+        if taskThread then
+            running = false
+            task.cancel(taskThread)
+            taskThread = nil
+        end
+
+        if walkType == "CFrame Speed" and speedEnabled then
+            running = true
+            taskThread = task.spawn(function()
+                while running and speedEnabled do
+                    task.wait()
+                    local character = player.Character
+                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = character and character:FindFirstChild("Humanoid")
+                    if not hrp or not humanoid then continue end
+
+                    local lastMove = moveToUsing[#moveToUsing] or 0
+                    local moveDir = ((os.clock() - lastMove) < 0.5 and (humanoid.WalkToPoint - hrp.Position).Unit) or humanoid.MoveDirection
+                    hrp.CFrame += moveDir * (cframeSpeed / 58.5)
+                end
+            end)
+        end
+    end
+})
+
+Speed:AddSlider("RegularWalkSpeed", {
+    Text = "Regular WalkSpeed",
+    Min = 20,
+    Max = 24,
+    Default = 20,
+    Rounding = 1,
+    Callback = function(v)
+        walkSpeed = v
+    end
+})
+
+Speed:AddSlider("CFrameSpeed", {
+    Text = "CFrame Speed",
+    Min = 0,
+    Max = 10,
+    Default = 0,
+    Rounding = 1,
+    Callback = function(v)
+        cframeSpeed = v
+    end
+})
+
+RunService:BindToRenderStep("WalkSpeed", Enum.RenderPriority.Character.Value, function()
+    if not speedEnabled or walkType ~= "Regular WalkSpeed" then return end
+
+    local character = player.Character
+    local humanoid = character and character:FindFirstChild("Humanoid")
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+
+    if not humanoid or not root then return end
+    if humanoid:GetState() ~= Enum.HumanoidStateType.Running then return end
+    if humanoid.WalkSpeed == 0 then return end
+
+    local moveDir
+    if (os.clock() - (moveToUsing[#moveToUsing] or 0)) < 0.5 then
+        moveDir = (humanoid.WalkToPoint - root.Position).Unit
+    else
+        moveDir = humanoid.MoveDirection
+    end
+
+    local velocity = root.AssemblyLinearVelocity
+    root.AssemblyLinearVelocity = Vector3.new(moveDir.X * walkSpeed, velocity.Y, moveDir.Z * walkSpeed)
+end)
+
+-- JUMPPOWER SECTION (FIXED)
+getgenv().jpon = getgenv().jpon or false
+getgenv().jpvalue = getgenv().jpvalue or 50
+
+JumpPower:AddToggle("JumpPowerEnabled", {
+    Text = "JumpPower",
+    Default = getgenv().jpon,
+    Callback = function(v)
+        getgenv().jpon = v
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = v and getgenv().jpvalue or 50
+        end
+    end,
+})
+
+JumpPower:AddSlider("JumpPowerValue", {
+    Text = "Custom JumpPower",
+    Default = getgenv().jpvalue,
+    Min = 50,
+    Max = 70,
+    Rounding = 1,
+    Callback = function(v)
+        getgenv().jpvalue = v
+        if getgenv().jpon and player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpPower = v
+        end
+    end,
+})
+
+local function applyJumpPower(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.JumpPower = getgenv().jpon and getgenv().jpvalue or 50
+end
+
+if player.Character then
+    applyJumpPower(player.Character)
+end
+
+player.CharacterAdded:Connect(applyJumpPower)
+
+-- ANGLE ENHANCER (FIXED)
+getgenv().isAngleEnhancerActive = false 
+getgenv().boostedJumpPower = 50 
+getgenv().isBoosting = false 
+
+local function isShiftPressed()
+    return UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+end
+
+local function applyJumpBoost(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    
+    humanoid.StateChanged:Connect(function(_, newState)
+        if newState == Enum.HumanoidStateType.Jumping and getgenv().isAngleEnhancerActive then
+            task.wait(0.05)
+            local currentVelocity = humanoidRootPart.AssemblyLinearVelocity
+            local jumpPower = getgenv().isBoosting and getgenv().boostedJumpPower or (getgenv().boostedJumpPower - 10)
+            humanoidRootPart.AssemblyLinearVelocity = Vector3.new(currentVelocity.X, jumpPower, currentVelocity.Z)
+        end
+    end)
+end
+
+local function activateBoost()
+    if not getgenv().isBoosting then
+        getgenv().isBoosting = true
+        local character = LocalPlayer.Character
+        if character then
+            applyJumpBoost(character)
+        end
+
+        task.delay(0.25, function()
+            getgenv().isBoosting = false
+        end)
+    end
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr.Character then
+        applyJumpBoost(plr.Character)
+    end
+    plr.CharacterAdded:Connect(applyJumpBoost)
+end
+
+RunService.RenderStepped:Connect(function()
+    if getgenv().isAngleEnhancerActive and isShiftPressed() then
+        activateBoost()
+    end
+end)
+
+PlayerExtra:AddToggle("AngleEnhancer", {
+    Text = "Angle Enhancer",
+    Default = false,
+    Tooltip = "Hold Shift while jumping",
+    Callback = function(value)
+        getgenv().isAngleEnhancerActive = value
+    end,
+})
+
+PlayerExtra:AddSlider("AngleRange", {
+    Text = "Angle Range",
+    Default = 50,
+    Min = 50,
+    Max = 70,
+    Rounding = 1,
+    Callback = function(value)
+        getgenv().boostedJumpPower = value
+    end,
+})
+
+-- FLY SECTION (FIXED)
+getgenv().glemoFlying = false
+getgenv().glemoFlySpeedValue = 0
+
+local flyKeyDown, flyKeyUp
+
+function glemoStartFly(vehicle)
+    repeat task.wait() until
+        LocalPlayer and
+        LocalPlayer.Character and
+        LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    repeat task.wait() until UserInputService
+
+    if flyKeyDown then flyKeyDown:Disconnect() end
+    if flyKeyUp then flyKeyUp:Disconnect() end
+
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    local moveKeys = {F=0,B=0,L=0,R=0,Q=0,E=0}
+    local lastMoveKeys = {F=0,B=0,L=0,R=0,Q=0,E=0}
+    local speedAmount = 0
+
+    local function flyLoop()
+        getgenv().glemoFlying = true
+        local bg = Instance.new("BodyGyro")
+        local bv = Instance.new("BodyVelocity")
+        bg.P = 9e4
+        bg.Parent = hrp
+        bv.Parent = hrp
+        bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+        bg.CFrame = hrp.CFrame
+        bv.Velocity = Vector3.new(0,0,0)
+        bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+
+        task.spawn(function()
+            repeat
+                task.wait()
+                local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if not vehicle and humanoid then
+                    humanoid.PlatformStand = true
+                end
+                if (moveKeys.L + moveKeys.R ~= 0) or (moveKeys.F + moveKeys.B ~= 0) or (moveKeys.Q + moveKeys.E ~= 0) then
+                    speedAmount = 50
+                elseif speedAmount ~= 0 then
+                    speedAmount = 0
+                end
+                if (moveKeys.L + moveKeys.R ~= 0) or (moveKeys.F + moveKeys.B ~= 0) or (moveKeys.Q + moveKeys.E ~= 0) then
+                    bv.Velocity = (workspace.CurrentCamera.CFrame.LookVector * (moveKeys.F + moveKeys.B) +
+                        workspace.CurrentCamera.CFrame * CFrame.new(moveKeys.L + moveKeys.R, (moveKeys.F + moveKeys.B + moveKeys.Q + moveKeys.E)*0.2, 0).Position -
+                        workspace.CurrentCamera.CFrame.Position) * speedAmount
+                    lastMoveKeys = {F=moveKeys.F,B=moveKeys.B,L=moveKeys.L,R=moveKeys.R}
+                elseif speedAmount ~= 0 then
+                    bv.Velocity = (workspace.CurrentCamera.CFrame.LookVector * (lastMoveKeys.F + lastMoveKeys.B) +
+                        workspace.CurrentCamera.CFrame * CFrame.new(lastMoveKeys.L + lastMoveKeys.R, (lastMoveKeys.F + lastMoveKeys.B + moveKeys.Q + moveKeys.E)*0.2, 0).Position -
+                        workspace.CurrentCamera.CFrame.Position) * speedAmount
+                else
+                    bv.Velocity = Vector3.new(0,0,0)
+                end
+                bg.CFrame = workspace.CurrentCamera.CFrame
+            until not getgenv().glemoFlying
+            moveKeys = {F=0,B=0,L=0,R=0,Q=0,E=0}
+            lastMoveKeys = {F=0,B=0,L=0,R=0,Q=0,E=0}
+            speedAmount = 0
+            bg:Destroy()
+            bv:Destroy()
+            if humanoid then humanoid.PlatformStand = false end
+        end)
+    end
+
+    flyKeyDown = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        local key = input.KeyCode
+        if key == Enum.KeyCode.W then
+            moveKeys.F = vehicle and getgenv().glemoFlySpeedValue or getgenv().glemoFlySpeedValue
+        elseif key == Enum.KeyCode.S then
+            moveKeys.B = -(vehicle and getgenv().glemoFlySpeedValue or getgenv().glemoFlySpeedValue)
+        elseif key == Enum.KeyCode.A then
+            moveKeys.L = -(vehicle and getgenv().glemoFlySpeedValue or getgenv().glemoFlySpeedValue)
+        elseif key == Enum.KeyCode.D then
+            moveKeys.R = vehicle and getgenv().glemoFlySpeedValue or getgenv().glemoFlySpeedValue
+        elseif key == Enum.KeyCode.E then
+            moveKeys.Q = (vehicle and getgenv().glemoFlySpeedValue or getgenv().glemoFlySpeedValue) * 2
+        elseif key == Enum.KeyCode.Q then
+            moveKeys.E = -(vehicle and getgenv().glemoFlySpeedValue or getgenv().glemoFlySpeedValue) * 2
+        end
+        pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Track end)
+    end)
+
+    flyKeyUp = UserInputService.InputEnded:Connect(function(input, gp)
+        if gp then return end
+        local key = input.KeyCode
+        if key == Enum.KeyCode.W then moveKeys.F = 0
+        elseif key == Enum.KeyCode.S then moveKeys.B = 0
+        elseif key == Enum.KeyCode.A then moveKeys.L = 0
+        elseif key == Enum.KeyCode.D then moveKeys.R = 0
+        elseif key == Enum.KeyCode.E then moveKeys.Q = 0
+        elseif key == Enum.KeyCode.Q then moveKeys.E = 0
+        end
+    end)
+
+    flyLoop()
+end
+
+function glemoStopFly()
+    getgenv().glemoFlying = false
+    if flyKeyDown then flyKeyDown:Disconnect() flyKeyDown = nil end
+    if flyKeyUp then flyKeyUp:Disconnect() flyKeyUp = nil end
+    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then humanoid.PlatformStand = false end
+    pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Custom end)
+end
+
+PlayerExtra:AddToggle("Fly", {
+    Text = "Fly",
+    Default = false,
+    Callback = function(state)
+        if state then
+            glemoStartFly(false)
+            task.spawn(function()
+                while state and getgenv().glemoFlying do
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame + LocalPlayer.Character.Humanoid.MoveDirection * getgenv().glemoFlySpeedValue
+                    end
+                    task.wait(0.01)
+                end
+            end)
+        else
+            getgenv().glemoFlySpeedValue = 0
+            glemoStopFly()
+        end
+    end,
+})
+
+PlayerExtra:AddSlider("FlySpeed", {
+    Text = "Fly Speed",
+    Default = 0,
+    Min = 0,
+    Max = 0.55,
+    Rounding = 2,
+    Callback = function(value)
+        getgenv().glemoFlySpeedValue = value
+    end,
+})
+
+-- GRAVITY
+getgenv().glemoGravity = 196.2
+
+PlayerExtra:AddSlider("Gravity", {
+    Text = "Gravity",
+    Default = 196.2,
+    Min = 0,
+    Max = 196.2,
+    Rounding = 1,
+    Callback = function(v)
+        getgenv().glemoGravity = v
+        workspace.Gravity = v
+    end,
+})
+
+-- NO JUMP COOLDOWN (FIXED)
+getgenv().glemoNoJumpCooldown = false
+
+local function onCharacterJumpFix(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    task.spawn(function()
+        while char and char.Parent and humanoid and getgenv().glemoNoJumpCooldown do
+            task.wait()
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+        end
+    end)
+end
+
+PlayerExtra:AddToggle("NoJumpCooldown", {
+    Text = "No Jump Cooldown",
+    Default = false,
+    Callback = function(v)
+        getgenv().glemoNoJumpCooldown = v
+        if v and player.Character then
+            onCharacterJumpFix(player.Character)
+        end
+    end,
+})
+
+player.CharacterAdded:Connect(function(char)
+    if getgenv().glemoNoJumpCooldown then
+        onCharacterJumpFix(char)
+    end
+end)
+
+-- LEG RESIZE (FIXED)
+getgenv().legSizeEnabled = false
+getgenv().legLengthIncrease = 0
+getgenv().originalLegSizes = {}
+
+local function resizeLegs(character)
+    local leftLeg = character:FindFirstChild("Left Leg") or character:FindFirstChild("LeftUpperLeg")
+    local rightLeg = character:FindFirstChild("Right Leg") or character:FindFirstChild("RightUpperLeg")
+
+    if leftLeg and rightLeg then
+        if not getgenv().originalLegSizes[character] then
+            getgenv().originalLegSizes[character] = {
+                leftLegSize = leftLeg.Size,
+                rightLegSize = rightLeg.Size,
+                leftHipC0 = leftLeg:FindFirstChildOfClass("Motor6D") and leftLeg:FindFirstChildOfClass("Motor6D").C0,
+                rightHipC0 = rightLeg:FindFirstChildOfClass("Motor6D") and rightLeg:FindFirstChildOfClass("Motor6D").C0
+            }
+        end
+
+        if getgenv().legSizeEnabled then
+            local lengthIncrease = Vector3.new(0, getgenv().legLengthIncrease, 0)
+            leftLeg.Size = getgenv().originalLegSizes[character].leftLegSize + lengthIncrease
+            rightLeg.Size = getgenv().originalLegSizes[character].rightLegSize + lengthIncrease
+
+            if leftLeg:FindFirstChildOfClass("Motor6D") then
+                local leftHip = leftLeg:FindFirstChildOfClass("Motor6D")
+                leftHip.C0 = getgenv().originalLegSizes[character].leftHipC0 * CFrame.new(0, getgenv().legLengthIncrease / 2, 0)
+
+                local rightHip = rightLeg:FindFirstChildOfClass("Motor6D")
+                rightHip.C0 = getgenv().originalLegSizes[character].rightHipC0 * CFrame.new(0, getgenv().legLengthIncrease / 2, 0)
+            end
+        else
+            leftLeg.Size = getgenv().originalLegSizes[character].leftLegSize
+            rightLeg.Size = getgenv().originalLegSizes[character].rightLegSize
+
+            if leftLeg:FindFirstChildOfClass("Motor6D") then
+                local leftHip = leftLeg:FindFirstChildOfClass("Motor6D")
+                leftHip.C0 = getgenv().originalLegSizes[character].leftHipC0
+
+                local rightHip = rightLeg:FindFirstChildOfClass("Motor6D")
+                rightHip.C0 = getgenv().originalLegSizes[character].rightHipC0
+            end
+        end
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(resizeLegs)
+
+if LocalPlayer.Character then
+    resizeLegs(LocalPlayer.Character)
+end
+
+PlayerExtra:AddToggle("LegResize", {
+    Text = "Leg Resize",
+    Default = false,
+    Callback = function(value)
+        getgenv().legSizeEnabled = value
+        if LocalPlayer.Character then
+            resizeLegs(LocalPlayer.Character)
+        end
+    end
+})
+
+PlayerExtra:AddSlider("LegSize", {
+    Text = "Leg Size",
+    Default = 0,
+    Min = 0,
+    Max = 15,
+    Rounding = 1,
+    Callback = function(value)
+        getgenv().legLengthIncrease = value
+        if LocalPlayer.Character and getgenv().legSizeEnabled then
+            resizeLegs(LocalPlayer.Character)
+        end
+    end
+})
+
+-- PHYSICS REACH SECTIONS
+getgenv().endzoneReachEnabled = getgenv().endzoneReachEnabled or false
+getgenv().endzoneReachDistance = getgenv().endzoneReachDistance or 5
+
+local reachPart
+
+local function createReachPart()
+    if reachPart and reachPart.Parent then return end
+    reachPart = Instance.new("Part")
+    reachPart.Size = Vector3.new(1, 1, getgenv().endzoneReachDistance)
+    reachPart.Transparency = 1
+    reachPart.CanCollide = false
+    reachPart.Anchored = true
+    reachPart.Parent = workspace
+end
+
+local function updateReachPart()
+    if not reachPart or not reachPart.Parent then createReachPart() end
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+    local hrp = char.HumanoidRootPart
+    reachPart.Size = Vector3.new(1, 1, getgenv().endzoneReachDistance)
+    reachPart.CFrame = hrp.CFrame * CFrame.new(0, 0, getgenv().endzoneReachDistance / 2 + 1)
+end
+
+local function removeReachPart()
+    if reachPart then
+        reachPart:Destroy()
+        reachPart = nil
+    end
+end
+
+PhysicsReach:AddToggle("EndzoneReach", {
+    Text = "Endzone Reach",
+    Default = getgenv().endzoneReachEnabled,
+    Callback = function(v)
+        getgenv().endzoneReachEnabled = v
+        if not v then
+            removeReachPart()
+        else
+            createReachPart()
+        end
+    end,
+})
+
+PhysicsReach:AddSlider("ReachDistance", {
+    Text = "Reach Distance",
+    Default = getgenv().endzoneReachDistance,
+    Min = 0,
+    Max = 15,
+    Rounding = 1,
+    Suffix = " studs",
+    Callback = function(v)
+        getgenv().endzoneReachDistance = v
+        if getgenv().endzoneReachEnabled then
+            updateReachPart()
+        end
+    end,
+})
+
+RunService.Heartbeat:Connect(function()
+    if getgenv().endzoneReachEnabled then
+        updateReachPart()
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    if getgenv().endzoneReachEnabled then
+        createReachPart()
+    end
+end)
+
+-- TACKLE REACH
+getgenv().tackleReachEnabled = getgenv().tackleReachEnabled or false
+getgenv().tackleReachRange = getgenv().tackleReachRange or 15
+getgenv().tackleReachConnection = getgenv().tackleReachConnection or nil
+
+local function fireTouchInterest(part1, part2, toggle)
+    firetouchinterest(part1, part2, toggle)
+end
+
+local function activateTackleReach()
+    if getgenv().tackleReachConnection then
+        getgenv().tackleReachConnection:Disconnect()
+        getgenv().tackleReachConnection = nil
+    end
+
+    getgenv().tackleReachConnection = RunService.Heartbeat:Connect(function()
+        if not getgenv().tackleReachEnabled then return end
+
+        local character = LocalPlayer.Character
+        if not character then return end
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local targetHrp = player.Character.HumanoidRootPart
+                local distance = (hrp.Position - targetHrp.Position).Magnitude
+                if distance <= getgenv().tackleReachRange then
+                    for _, part in pairs(player.Character:GetChildren()) do
+                        if part:IsA("BasePart") and character:FindFirstChild(part.Name) then
+                            fireTouchInterest(character[part.Name], part, 0)
+                            fireTouchInterest(character[part.Name], part, 1)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+PhysicsReach:AddToggle("TackleReach", {
+    Text = "Tackle Reach",
+    Default = false,
+    Callback = function(v)
+        getgenv().tackleReachEnabled = v
+        if v then
+            activateTackleReach()
+        else
+            if getgenv().tackleReachConnection then
+                getgenv().tackleReachConnection:Disconnect()
+                getgenv().tackleReachConnection = nil
+            end
+        end
+    end
+})
+
+PhysicsReach:AddSlider("TackleReachRange", {
+    Text = "Tackle Range",
+    Default = getgenv().tackleReachRange,
+    Min = 0,
+    Max = 25,
+    Rounding = 1,
+    Suffix = " studs",
+    Callback = function(v)
+        getgenv().tackleReachRange = v
+    end
+})
+
+-- BLOCK REACH
+getgenv().glemoBlockReach = false
+getgenv().glemoBlockSize = 5
+getgenv().glemoAntiBlock = false
+getgenv().glemoHitbox = false
+getgenv().glemoCharacter = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    getgenv().glemoCharacter = char
+end)
+
+local function glemoGetBlock()
+    getgenv().glemoCharacter = LocalPlayer.Character
+    return glemoCharacter and glemoCharacter:FindFirstChild("BlockPart")
+end
+
+local function glemoUpdateBlock()
+    local part = glemoGetBlock()
+    if part then
+        if glemoBlockReach and glemoHitbox then
+            part.Size = Vector3.new(glemoBlockSize, glemoBlockSize, glemoBlockSize)
+            part.Transparency = 0.5
+        elseif glemoBlockReach then
+            part.Size = Vector3.new(glemoBlockSize, glemoBlockSize, glemoBlockSize)
+            part.Transparency = 1
+        else
+            part.Size = Vector3.new(0.75, 5, 1.5)
+            part.Transparency = 1
+        end
+    end
+end
+
+local function glemoDestroyFF()
+    local torso = glemoCharacter and glemoCharacter:FindFirstChild("Torso")
+    if glemoAntiBlock and torso then
+        local mover = torso:FindFirstChild("FFmover")
+        if mover then
+            mover:Destroy()
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait() do
+        glemoUpdateBlock()
+        glemoDestroyFF()
+    end
+end)
+
+PhysicsReach:AddToggle("BlockReach", {
+    Text = "Block Reach",
+    Default = false,
+    Callback = function(v)
+        getgenv().glemoBlockReach = v
+    end,
+})
+
+PhysicsReach:AddSlider("BlockDistance", {
+    Text = "Block Distance",
+    Default = 5,
+    Min = 5,
+    Max = 20,
+    Rounding = 1,
+    Suffix = " studs",
+    Callback = function(v)
+        getgenv().glemoBlockSize = v
+    end,
+})
+
+PhysicsReach:AddToggle("ShowBlockRange", {
+    Text = "Show Block Range",
+    Default = false,
+    Callback = function(v)
+        getgenv().glemoHitbox = v
+    end,
+})
+
+-- QUICK TP
+getgenv().quickTPEnabled = false
+getgenv().teleportDistance = 0
+
+local function teleportForward()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        local forwardVector = rootPart.CFrame.LookVector
+        local newPosition = rootPart.Position + forwardVector * getgenv().teleportDistance
+        rootPart.CFrame = CFrame.new(newPosition, newPosition + forwardVector)
+    end
+end
+
+PhysicsTP:AddToggle("QuickTP", {
+    Text = "Quick TP",
+    Default = false,
+    Callback = function(v)
+        getgenv().quickTPEnabled = v
+    end,
+})
+
+PhysicsTP:AddSlider("QuickTPDistance", {
+    Text = "TP Distance",
+    Default = 0,
+    Min = 0,
+    Max = 5,
+    Rounding = 1,
+    Suffix = " studs",
+    Callback = function(v)
+        getgenv().teleportDistance = v
+    end,
+})
+
+PhysicsTP:AddInput("QuickTPBind", {
+    Text = "Quick TP Keybind",
+    Default = "F",
+    Placeholder = "Press a key...",
+    Numeric = false,
+    Finished = false,
+    Callback = function(value)
+        UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.KeyCode.Name == value and getgenv().quickTPEnabled then
+                teleportForward()
+            end
+        end)
+    end
+})
+
+-- HEAD RESIZE
+getgenv().glemoHeadResize = false
+getgenv().glemoHeadSize = 0
+getgenv().glemoHeadTransparency = 0
+
+task.spawn(function()
+    while task.wait() do
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                local char = p.Character
+                local head = char and char:FindFirstChild("Head")
+                if head then
+                    if getgenv().glemoHeadResize then
+                        head.Size = Vector3.new(getgenv().glemoHeadSize, getgenv().glemoHeadSize, getgenv().glemoHeadSize)
+                        head.Transparency = getgenv().glemoHeadTransparency
+                    else
+                        head.Size = Vector3.new(2, 1, 1)
+                        head.Transparency = 0
+                    end
+                end
+            end
+        end
+    end
+end)
+
+PhysicsExtra:AddToggle("HeadResize", {
+    Text = "Head Resize",
+    Default = false,
+    Callback = function(v)
+        getgenv().glemoHeadResize = v
+    end,
+})
+
+PhysicsExtra:AddSlider("HeadSize", {
+    Text = "Head Size",
+    Default = 0,
+    Min = 0,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(v)
+        getgenv().glemoHeadSize = v
+    end,
+})
+
+PhysicsExtra:AddSlider("HeadTransparency", {
+    Text = "Head Transparency",
+    Default = 0,
+    Min = 0,
+    Max = 1,
+    Rounding = 1,
+    Callback = function(v)
+        getgenv().glemoHeadTransparency = v
+    end,
+})
+
+-- CLICK TACKLE
+getgenv().glemoClickTackle = false
+getgenv().glemoClickTackleRange = 0
+getgenv().glemoClickTackleConnection = nil
+
+local function glemoClickTackleHandler()
+    getgenv().glemoClickTackleConnection = mouse.Button1Down:Connect(function()
+        if not getgenv().glemoClickTackle then return end
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name == "Football" and obj:IsA("Tool") then
+                local rootPart = obj.Parent:FindFirstChild("HumanoidRootPart")
+                if rootPart and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local playerPos = LocalPlayer.Character.HumanoidRootPart.Position
+                    local objPos = rootPart.Position
+                    if (objPos - playerPos).Magnitude <= getgenv().glemoClickTackleRange then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = rootPart.CFrame + Vector3.new(1, 1, 1)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+PhysicsExtra:AddToggle("ClickTackle", {
+    Text = "Click Tackle",
+    Default = false,
+    Callback = function(v)
+        getgenv().glemoClickTackle = v
+        if v then
+            glemoClickTackleHandler()
+        else
+            if getgenv().glemoClickTackleConnection then
+                getgenv().glemoClickTackleConnection:Disconnect()
+                getgenv().glemoClickTackleConnection = nil
+            end
+        end
+    end,
+})
+
+PhysicsExtra:AddSlider("ClickTackleRange", {
+    Text = "Click Tackle Range",
+    Default = 0,
+    Min = 0,
+    Max = 15,
+    Rounding = 1,
+    Suffix = " studs",
+    Callback = function(v)
+        getgenv().glemoClickTackleRange = v
+    end,
+})
+
+-- ANTI JAM
+getgenv().isAntiJamEnabled = false
+
+PhysicsExtra:AddToggle("AntiJam", {
+    Text = "Anti Jam",
+    Default = false,
+    Callback = function(v)
+        getgenv().isAntiJamEnabled = v
+        if getgenv().isAntiJamEnabled then
+            task.spawn(function()
+                while getgenv().isAntiJamEnabled do
+                    local localPlayer = LocalPlayer
+                    local character = localPlayer.Character
+                    if character and character:FindFirstChild("Head") and character.Head.CanCollide then
+                        for _, plyr in ipairs(Players:GetPlayers()) do
+                            if plyr ~= localPlayer and plyr.Character and plyr.Character:FindFirstChild("Head") then
+                                pcall(function()
+                                    plyr.Character.Torso.CanCollide = false
+                                    plyr.Character.Head.CanCollide = false
+                                end)
+                            end
+                        end
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            local localPlayer = LocalPlayer
+            local character = localPlayer.Character
+            if character and character:FindFirstChild("Head") and not character.Head.CanCollide then
+                character.Torso.CanCollide = true
+                character.Head.CanCollide = true
+            end
+        end
+    end,
+})
+
+PhysicsExtra:AddToggle("AntiBlock", {
+    Text = "Anti Block",
+    Default = false,
+    Callback = function(v)
+        getgenv().glemoAntiBlock = v
+    end,
+})
+
+-- ANTI ADMIN
+local AdminUserIds = {
+    457084784, 416181091, 715471321, 203598810, 73822364,
+    914248805, 457014853, 3728026286, 1170439264, 423709066,
+}
+
+local function isAdmin(userId)
+    for _, id in ipairs(AdminUserIds) do
+        if userId == id then return true end
+    end
+    return false
+end
+
+local antiAdminConnection
+
+PhysicsExtra:AddToggle("AntiAdmin", {
+    Text = "Anti Admin",
+    Default = false,
+    Callback = function(v)
+        if v then
+            antiAdminConnection = Players.PlayerAdded:Connect(function(plr)
+                if isAdmin(plr.UserId) then
+                    Players.LocalPlayer:Kick("Admin detected.")
+                end
+            end)
+
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if isAdmin(plr.UserId) then
+                    Players.LocalPlayer:Kick("Admin detected.")
+                end
+            end
+        else
+            if antiAdminConnection then
+                antiAdminConnection:Disconnect()
+                antiAdminConnection = nil
+            end
+        end
+    end,
+})
+
+-- AUTO CAPTAIN (FIXED)
+getgenv().autocapon = false
+getgenv().isCatching = false
+getgenv().finishLine = game.PlaceId == 8206123457 and Instance.new("Part") or workspace.Models.LockerRoomA.FinishLine
+
+AutoCap:AddToggle("AutoCapEnabled", {
+    Text = "Auto Captain",
+    Default = false,
+    Callback = function(v)
+        getgenv().autocapon = v
+        if v then
+            Library:Notify({
+                Title = "ðŸŽ© Auto Captain",
+                Description = "Auto Captain Enabled!",
+                Time = 2
+            })
+        end
+    end,
+})
+
+getgenv().finishLine:GetPropertyChangedSignal("CFrame"):Connect(function()
+    if getgenv().autocapon and not getgenv().isCatching and getgenv().finishLine.Position.Y > 0 then
+        for i = 1, 7 do
+            task.wait(0.2)
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = getgenv().finishLine.CFrame + Vector3.new(0, 2, 0)
+            end
+        end
+    end
+end)
+
+-- AUTO RUSH (FIXED)
+getgenv().AutoRushOn = false
+getgenv().AutoRushPredict = false
+getgenv().AutoRushDelay = 0
+getgenv().AutoRushLineColor = Color3.fromRGB(0, 255, 0)
+
+local function isEnemy(plyr)
+    if not LocalPlayer.Team or not plyr.Team then
+        return true
+    end
+    return plyr.Team ~= LocalPlayer.Team
+end
+
+local function findPossessor()
+    for _, plyr in ipairs(Players:GetPlayers()) do
+        local char = plyr.Character
+        if char and char:FindFirstChildWhichIsA("Tool") and isEnemy(plyr) then
+            return char
+        end
+    end
+    return nil
+end
+
+local rushLine, rushStart, rushEnd
+local endPart
+
+local function createPredictionLine(color)
+    if rushLine then
+        rushLine:Destroy()
+    end
+    if endPart then
+        endPart:Destroy()
+    end
+    
+    local part = Instance.new("Part")
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 1
+    part.Size = Vector3.new(0.5, 0.5, 0.5)
+    part.Name = "RushLine"
+
+    local a1 = Instance.new("Attachment", part)
+    local a2 = Instance.new("Attachment", part)
+
+    local beamRush = Instance.new("Beam")
+    beamRush.Attachment0 = a1
+    beamRush.Attachment1 = a2
+    beamRush.Color = ColorSequence.new(color)
+    beamRush.Width0 = 0.25
+    beamRush.Width1 = 0.25
+    beamRush.FaceCamera = true
+    beamRush.LightInfluence = 0
+    beamRush.Transparency = NumberSequence.new(0)
+    beamRush.Parent = a1
+
+    part.Parent = workspace
+    rushLine, rushStart, rushEnd = part, a1, a2
+
+    endPart = Instance.new("Part")
+    endPart.Anchored = true
+    endPart.CanCollide = false
+    endPart.Size = Vector3.new(2, 2, 2)
+    endPart.Transparency = 0
+    endPart.BrickColor = BrickColor.new("Bright green")
+    endPart.Material = Enum.Material.Neon
+    endPart.Name = "RushEndPart"
+    endPart.Parent = workspace
+end
+
+createPredictionLine(getgenv().AutoRushLineColor)
+
+task.spawn(function()
+    local log = {}
+    while true do
+        task.wait(1/30)
+
+        if not getgenv().AutoRushOn then
+            if rushLine then
+                rushLine.Parent = nil
+            end
+            if endPart then
+                endPart.Parent = nil
+            end
+            continue
+        end
+
+        local char = LocalPlayer.Character
+        if not char then continue end
+
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChild("Humanoid")
+        if not hrp or not hum then continue end
+
+        local possessor = findPossessor()
+        if not possessor then
+            log = {}
+            if rushLine then
+                rushLine.Parent = nil
+            end
+            if endPart then
+                endPart.Parent = nil
+            end
+            continue
+        end
+
+        local possHRP = possessor:FindFirstChild("HumanoidRootPart")
+        if not possHRP then continue end
+
+        local logIndex = math.max(#log - math.round(getgenv().AutoRushDelay / (1/30)), 1)
+        local delayedPos = log[logIndex]
+        table.insert(log, possHRP.Position)
+
+        if not delayedPos then continue end
+
+        local predictedPos = delayedPos + (possessor.Humanoid.MoveDirection * 20 * getgenv().AutoRushDelay)
+        hum:MoveTo(getgenv().AutoRushPredict and predictedPos or delayedPos)
+
+        if getgenv().AutoRushPredict then
+            if not rushLine then
+                createPredictionLine(getgenv().AutoRushLineColor)
+            else
+                local beamRush = rushStart:FindFirstChildOfClass("Beam")
+                if beamRush then
+                    beamRush.Color = ColorSequence.new(getgenv().AutoRushLineColor)
+                end
+            end
+
+            rushLine.Position = predictedPos
+            rushStart.WorldPosition = hrp.Position
+            rushEnd.WorldPosition = predictedPos
+            rushLine.Parent = workspace
+
+            if endPart then
+                endPart.Position = predictedPos
+                endPart.Parent = workspace
+            end
+        else
+            if rushLine then
+                rushLine.Parent = nil
+            end
+            if endPart then
+                endPart.Parent = nil
+            end
+        end
+    end
+end)
+
+AutoRush:AddToggle("AutoRushEnabled", {
+    Text = "Auto Rush",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoRushOn = v
+        if v then
+            Library:Notify({
+                Title = "ðŸƒ Auto Rush",
+                Description = "Auto Rush Enabled!",
+                Time = 2
+            })
+        end
+    end,
+})
+
+AutoRush:AddToggle("RushPrediction", {
+    Text = "Rush Prediction",
+    Default = false,
+    Callback = function(v)
+        getgenv().AutoRushPredict = v
+    end,
+})
+
+AutoRush:AddSlider("RushDelay", {
+    Text = "Rush Delay",
+    Default = 0,
+    Min = 0,
+    Max = 1,
+    Rounding = 1,
+    Suffix = " delay",
+    Callback = function(v)
+        getgenv().AutoRushDelay = v
+    end,
+})
+
+AutoRush:AddDropdown("PredictionLineColor", {
+    Text = "Prediction Line Color",
+    Values = {"Green", "Red", "Blue", "Yellow", "Purple", "Cyan", "White"},
+    Default = 1,
+    Callback = function(colorName)
+        local colors = {
+            Green = Color3.fromRGB(0, 255, 0),
+            Red = Color3.fromRGB(255, 0, 0),
+            Blue = Color3.fromRGB(0, 0, 255),
+            Yellow = Color3.fromRGB(255, 255, 0),
+            Purple = Color3.fromRGB(128, 0, 128),
+            Cyan = Color3.fromRGB(0, 255, 255),
+            White = Color3.fromRGB(255, 255, 255),
+        }
+        getgenv().AutoRushLineColor = colors[colorName] or Color3.fromRGB(0, 255, 0)
+    end,
+})
+
+-- AUTO QB (FIXED)
+getgenv().autoQBEnabled = false
+getgenv().autoQBType = "Walk"
+getgenv().lastTeleported = 0
+
+local function findClosestBall()
+    local closestBall = nil
+    local closestDist = math.huge
+    for _, ball in pairs(workspace:GetChildren()) do
+        if ball.Name == "Football" then
+            local dist = (ball.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if dist < closestDist then
+                closestDist = dist
+                closestBall = ball
+            end
+        end
+    end
+    return closestBall
+end
+
+AutoQB:AddToggle("AutoQBEnabled", {
+    Text = "Auto QB",
+    Default = false,
+    Callback = function(v)
+        getgenv().autoQBEnabled = v
+        if v then
+            Library:Notify({
+                Title = "ðŸˆ Auto QB",
+                Description = "Auto QB Enabled!",
+                Time = 2
+            })
+            task.spawn(function()
+                while getgenv().autoQBEnabled do
+                    task.wait()
+                    local values = workspace:FindFirstChild("GameValues")
+                    if not values then continue end
+                    if values.Status.Value ~= "PrePlay" then continue end
+                    if values.PlayType.Value ~= "normal" then continue end
+                    if values.PossessionTag.Value ~= LocalPlayer.Team.Name then continue end
+
+                    local character = LocalPlayer.Character
+                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                    local humanoid = character and character:FindFirstChild("Humanoid")
+                    if not hrp or not humanoid then continue end
+
+                    local ball = findClosestBall()
+                    if not ball then continue end
+
+                    if getgenv().autoQBType == "TP" then
+                        if (os.clock() - getgenv().lastTeleported) < 3 then continue end
+                        getgenv().lastTeleported = os.clock()
+                        hrp.CFrame = ball.CFrame
+                    else
+                        moveToUsing[#moveToUsing + 1] = os.clock()
+                        humanoid:MoveTo(ball.Position)
+                    end
+                end
+            end)
+        end
+    end,
+})
+
+AutoQB:AddDropdown("AutoQBType", {
+    Text = "Auto QB Type",
+    Values = {"TP", "Walk"},
+    Default = 2,
+    Callback = function(value)
+        getgenv().autoQBType = value
+    end,
+})
+
+-- AUTO CATCH (FIXED)
+getgenv().autoCatchEnabled = false
+
+local function getNearestBall()
+    local nearestBall = nil
+    local shortestDistance = math.huge
+
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj.Name == "Football" and obj:IsA("Tool") then
+            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local distance = (obj.Position - hrp.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestBall = obj
+                end
+            end
+        end
+    end
+
+    return nearestBall
+end
+
+local function autoCatch()
+    while getgenv().autoCatchEnabled do
+        task.wait()
+        local ball = getNearestBall()
+        if ball then
+            keypress(0x43)
+            keyrelease(0x43)
+            task.wait(1.5)
+        end
+    end
+end
+
+AutoQB:AddToggle("AutoCatch", {
+    Text = "Auto Catch",
+    Default = false,
+    Callback = function(state)
+        getgenv().autoCatchEnabled = state
+        if state then
+            task.spawn(autoCatch)
+        end
+    end,
+})
+
+-- AUTO BOOST (FIXED)
+getgenv().autoboooston = false
+getgenv().boostpower = 0
+getgenv().lastJump = 0
+
+AutoQB:AddToggle("AutoBoost", {
+    Text = "Auto Boost",
+    Default = false,
+    Callback = function(v)
+        getgenv().autoboooston = v
+    end,
+})
+
+AutoQB:AddSlider("BoostPower", {
+    Text = "Boost Power",
+    Default = 0,
+    Min = 0,
+    Max = 25,
+    Rounding = 1,
+    Callback = function(v)
+        getgenv().boostpower = v
+    end,
+})
+
+task.spawn(function()
+    while task.wait() do
+        if getgenv().autoboooston and getgenv().boostpower > 0 then
+            local now = tick()
+            if now - getgenv().lastJump >= 5 then
+                local localPlayer = LocalPlayer
+                local char = localPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    for _, plyr in ipairs(Players:GetPlayers()) do
+                        if plyr ~= localPlayer and plyr.Character and plyr.Character:FindFirstChild("Head") then
+                            local head = plyr.Character.Head
+                            if (char.HumanoidRootPart.Position - head.Position).Magnitude < 4 then
+                                char.HumanoidRootPart.Velocity = Vector3.new(0, getgenv().boostpower * 6, 0)
+                                getgenv().lastJump = now
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- VISUAL ESP
+getgenv().ballESP = false
+
+VisualESP:AddToggle("BallESP", {
+    Text = "Rainbow Ball ESP",
+    Default = false,
+    Callback = function(v)
+        getgenv().ballESP = v
+
+        task.spawn(function()
+            local hue = 0
+            while getgenv().ballESP do
+                local football = workspace:FindFirstChild("Football")
+                if football then
+                    local adorn = football:FindFirstChild("ESP")
+                    if not adorn then
+                        adorn = Instance.new("BoxHandleAdornment")
+                        adorn.Name = "ESP"
+                        adorn.Adornee = football
+                        adorn.Size = football.Size + Vector3.new(0.5, 0.5, 0.5)
+                        adorn.AlwaysOnTop = true
+                        adorn.ZIndex = 10
+                        adorn.Transparency = 0.3
+                        adorn.Parent = football
+                    end
+                    adorn.Color3 = Color3.fromHSV(hue, 1, 1)
+                end
+                hue = (hue + 0.01) % 1
+                task.wait(0.05)
+            end
+
+            local football = workspace:FindFirstChild("Football")
+            if football and football:FindFirstChild("ESP") then
+                football.ESP:Destroy()
+            end
+        end)
+    end,
+})
+
+-- CATCH EFFECT (FIXED)
+getgenv().catchEffects = false
+getgenv().holdingBefore = false
+
+VisualEffects:AddToggle("CatchEffect", {
+    Text = "DLC Catch Effect",
+    Default = false,
+    Callback = function(v)
+        getgenv().catchEffects = v
+    end
+})
+
+local function burstEffect()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local ring = Instance.new("Part")
+    ring.Shape = Enum.PartType.Ball
+    ring.Size = Vector3.new(1,1,1)
+    ring.Material = Enum.Material.Neon
+    ring.BrickColor = BrickColor.new("Lime green")
+    ring.CanCollide = false
+    ring.Anchored = true
+    ring.CFrame = hrp.CFrame
+    ring.Parent = workspace
+
+    local light = Instance.new("PointLight")
+    light.Color = Color3.fromRGB(0,255,0)
+    light.Range = 12
+    light.Brightness = 2
+    light.Parent = ring
+
+    local trail = Instance.new("Trail")
+    trail.Color = ColorSequence.new(Color3.new(0, 1, 0), Color3.new(1, 1, 1))
+    trail.Lifetime = 0.4
+    trail.Attachment0 = Instance.new("Attachment", ring)
+    trail.Attachment1 = Instance.new("Attachment", hrp)
+    trail.Parent = ring
+
+    TweenService:Create(ring, TweenInfo.new(0.4), {
+        Size = Vector3.new(10,10,10),
+        Transparency = 1
+    }):Play()
+
+    game.Debris:AddItem(ring, 0.5)
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if getgenv().catchEffects then
+            local char = LocalPlayer.Character
+            if char then
+                local tool = char:FindFirstChildOfClass("Tool")
+                local holdingNow = (tool and tool.Name == "Football")
+                if holdingNow and not getgenv().holdingBefore then
+                    burstEffect()
+                end
+                getgenv().holdingBefore = holdingNow
+            end
+        end
+    end
+end)
+
+-- TRAJECTORY VISUALIZER (FIXED)
+getgenv().Grapher = {}
+
+local Grapher = getgenv().Grapher
+
+Grapher.BeamHolderTemplate = Instance.new("Part")
+Grapher.BeamHolderTemplate.Anchored = true
+Grapher.BeamHolderTemplate.CanCollide = false
+Grapher.BeamHolderTemplate.Transparency = 1
+Grapher.BeamHolderTemplate.Name = "BeamHolderTemplate"
+
+Grapher.CastStep = 3 / 60
+Grapher.VisualizerEnabled = false
+Grapher.BeamColor = Color3.fromRGB(0, 255, 0)
+Grapher.BeamTransparency = 0.15
+Grapher.Gravity = 28
+Grapher.HiddenFolder = nil
+Grapher.LastUpdate = 0
+
+function Grapher:CreateHiddenFolder()
+    if not Grapher.HiddenFolder or not Grapher.HiddenFolder.Parent then
+        local f = workspace:FindFirstChild("CorePackages")
+        if not f then
+            f = Instance.new("Folder")
+            f.Name = "CorePackages"
+            f.Parent = workspace
+        end
+        Grapher.HiddenFolder = f
+    end
+    return Grapher.HiddenFolder
+end
+
+function Grapher:ClearAllVisuals()
+    local f = Grapher:CreateHiddenFolder()
+    for _, v in pairs(f:GetChildren()) do
+        v:Destroy()
+    end
+end
+
+function Grapher:CreateBeamSegment(startPos, endPos)
+    local f = Grapher:CreateHiddenFolder()
+    local segmentHolder = Grapher.BeamHolderTemplate:Clone()
+    segmentHolder.Parent = f
+
+    local a0 = Instance.new("Attachment", segmentHolder)
+    a0.WorldPosition = startPos
+
+    local a1 = Instance.new("Attachment", segmentHolder)
+    a1.WorldPosition = endPos
+
+    local beamVis = Instance.new("Beam")
+    beamVis.Attachment0 = a0
+    beamVis.Attachment1 = a1
+    beamVis.Color = ColorSequence.new(Grapher.BeamColor)
+    beamVis.Transparency = NumberSequence.new(Grapher.BeamTransparency)
+    beamVis.Width0 = 0.6
+    beamVis.Width1 = 0.6
+    beamVis.LightEmission = 1
+    beamVis.FaceCamera = true
+    beamVis.TextureSpeed = 1
+    beamVis.Parent = segmentHolder
+
+    segmentHolder.Material = Enum.Material.Neon
+    segmentHolder.Color = Grapher.BeamColor
+
+    task.delay(4, function()
+        if segmentHolder then
+            segmentHolder:Destroy()
+        end
+    end)
+end
+
+function Grapher:GetTrajectoryPoints(origin, velocity)
+    local elapsed = 0
+    local points = {}
+    while elapsed < 5 do
+        elapsed += Grapher.CastStep
+        local nextPos = origin + velocity * elapsed - Vector3.new(0, 0.5 * Grapher.Gravity * elapsed ^ 2, 0)
+        table.insert(points, nextPos)
+    end
+    return points
+end
+
+function Grapher:UpdateBeam(points)
+    if #points < 2 then return end
+    for i = 1, #points - 1 do
+        Grapher:CreateBeamSegment(points[i], points[i + 1])
+    end
+end
+
+function Grapher:GetLanding(origin, velocity)
+    local now = tick()
+    if now - Grapher.LastUpdate < 0.15 then return end
+    Grapher.LastUpdate = now
+    local points = Grapher:GetTrajectoryPoints(origin, velocity)
+    Grapher:UpdateBeam(points)
+end
+
+function Grapher:StartVisualizer()
+    Grapher.VisualizerEnabled = true
+end
+
+function Grapher:StopVisualizer()
+    Grapher.VisualizerEnabled = false
+    Grapher:ClearAllVisuals()
+end
+
+workspace.ChildAdded:Connect(function(child)
+    if child.Name == "Football" and child:IsA("BasePart") then
+        local con
+        con = child:GetPropertyChangedSignal("Velocity"):Connect(function()
+            if Grapher.VisualizerEnabled then
+                Grapher:GetLanding(child.Position, child.Velocity)
+            end
+            con:Disconnect()
+        end)
+    end
+end)
+
+VisualEffects:AddToggle("VisualizeTrajectory", {
+    Text = "Visualize Trajectory",
+    Default = false,
+    Callback = function(v)
+        if v then
+            Grapher:StartVisualizer()
+        else
+            Grapher:StopVisualizer()
+        end
+    end
+})
+
+VisualEffects:AddDropdown("BeamColor", {
+    Text = "Beam Color",
+    Values = {"Red", "Green", "Blue", "Yellow", "Purple", "White", "Cyan", "Orange"},
+    Default = 2,
+    Callback = function(opt)
+        if opt == "Red" then
+            Grapher.BeamColor = Color3.fromRGB(255, 0, 0)
+        elseif opt == "Green" then
+            Grapher.BeamColor = Color3.fromRGB(0, 255, 0)
+        elseif opt == "Blue" then
+            Grapher.BeamColor = Color3.fromRGB(0, 0, 255)
+        elseif opt == "Yellow" then
+            Grapher.BeamColor = Color3.fromRGB(255, 255, 0)
+        elseif opt == "Purple" then
+            Grapher.BeamColor = Color3.fromRGB(170, 0, 255)
+        elseif opt == "White" then
+            Grapher.BeamColor = Color3.fromRGB(255, 255, 255)
+        elseif opt == "Cyan" then
+            Grapher.BeamColor = Color3.fromRGB(0, 255, 255)
+        elseif opt == "Orange" then
+            Grapher.BeamColor = Color3.fromRGB(255, 125, 0)
+        end
+    end
+})
+
+-- FPS BOOST
+getgenv().glemoBoostFPS = false
+local originalMaterials = {}
+
+VisualEffects:AddToggle("FPSBoost", {
+    Text = "FPS Boost / Low Graphics",
+    Default = false,
+    Callback = function(state)
+        getgenv().glemoBoostFPS = state
+        if state then
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("Part") and obj.Material then
+                    originalMaterials[obj] = obj.Material
+                    obj.Material = Enum.Material.SmoothPlastic
+                end
+            end
+        else
+            for obj, original in pairs(originalMaterials) do
+                if obj and obj:IsDescendantOf(workspace) then
+                    obj.Material = original
+                end
+            end
+            table.clear(originalMaterials)
+        end
+    end,
+})
+
+VisualEffects:AddToggle("DestroyStadium", {
+    Text = "Destroy Stadium",
+    Default = false,
+    Callback = function(state)
+        if state then
+            task.spawn(function()
+                local container = workspace:FindFirstChild("Models")
+                if container then
+                    local stadiumModel = container:FindFirstChild("Stadium")
+                    if stadiumModel then
+                        stadiumModel:Destroy()
+                    end
+                end
+            end)
+        end
+    end,
+})
+
+-- LIGHTING
+local defaultSettings = {
+    ClockTime = LightingService.ClockTime,
+    Ambient = LightingService.Ambient,
+    OutdoorAmbient = LightingService.OutdoorAmbient,
+    FogColor = LightingService.FogColor,
+    Brightness = LightingService.Brightness,
+}
+
+local timeSettings = {
+    Dawn = {
+        ClockTime = 6,
+        Ambient = Color3.fromRGB(120, 120, 160),
+        OutdoorAmbient = Color3.fromRGB(170, 170, 220),
+        FogColor = Color3.fromRGB(200, 200, 255),
+        Brightness = 1.5,
+    },
+    Morning = {
+        ClockTime = 8,
+        Ambient = Color3.fromRGB(180, 180, 180),
+        OutdoorAmbient = Color3.fromRGB(200, 200, 200),
+        FogColor = Color3.fromRGB(255, 255, 255),
+        Brightness = 2,
+    },
+    Noon = {
+        ClockTime = 12,
+        Ambient = Color3.fromRGB(200, 200, 200),
+        OutdoorAmbient = Color3.fromRGB(255, 255, 255),
+        FogColor = Color3.fromRGB(255, 255, 255),
+        Brightness = 2.25,
+    },
+    Dusk = {
+        ClockTime = 18.5,
+        Ambient = Color3.fromRGB(100, 80, 100),
+        OutdoorAmbient = Color3.fromRGB(180, 150, 200),
+        FogColor = Color3.fromRGB(160, 130, 190),
+        Brightness = 1.25,
+    },
+    Night = {
+        ClockTime = 21,
+        Ambient = Color3.fromRGB(40, 40, 80),
+        OutdoorAmbient = Color3.fromRGB(50, 50, 90),
+        FogColor = Color3.fromRGB(60, 60, 100),
+        Brightness = 0.75,
+    },
+}
+
+Lighting:AddDropdown("TimeOfDay", {
+    Text = "Time of Day",
+    Values = {"None", "Dawn", "Morning", "Noon", "Dusk", "Night"},
+    Default = 1,
+    Callback = function(selection)
+        local setting = selection == "None" and defaultSettings or timeSettings[selection]
+        if setting then
+            LightingService.ClockTime = setting.ClockTime
+            LightingService.Ambient = setting.Ambient
+            LightingService.OutdoorAmbient = setting.OutdoorAmbient
+            LightingService.FogColor = setting.FogColor
+            LightingService.Brightness = setting.Brightness
+        end
+    end,
+})
+
+Lighting:AddToggle("NoBallTrail", {
+    Text = "No Ball Trail",
+    Default = false,
+    Callback = function(v)
+        getgenv().noBallTrail = v
+        if v then
+            for _, ball in pairs(workspace:GetChildren()) do
+                if ball.Name == "Football" and ball:IsA("BasePart") then
+                    local trail = ball:FindFirstChildWhichIsA("Trail")
+                    if trail then
+                        trail.Enabled = false
+                    end
+                end
+            end
+        else
+            for _, ball in pairs(workspace:GetChildren()) do
+                if ball.Name == "Football" and ball:IsA("BasePart") then
+                    local trail = ball:FindFirstChildWhichIsA("Trail")
+                    if trail then
+                        trail.Enabled = true
+                    end
+                end
+            end
+        end
+    end,
+})
+
+workspace.ChildAdded:Connect(function(ball)
+    task.wait()
+    if not getgenv().noBallTrail then return end
+    if ball.Name ~= "Football" then return end
+    if not ball:IsA("BasePart") then return end
+    local trail = ball:FindFirstChildWhichIsA("Trail")
+    if trail then
+        trail.Enabled = false
+    end
+end)
+
+-- TROLLING FEATURES
+getgenv().glemoJerseyName = ""
+getgenv().glemoJerseyNumber = ""
+
+TrollingMain:AddInput("JerseyName", {
+    Text = "Jersey Name",
+    Default = "",
+    Placeholder = "Enter Name",
+    Numeric = false,
+    Finished = true,
+    Callback = function(v)
+        getgenv().glemoJerseyName = v
+    end,
+})
+
+TrollingMain:AddInput("JerseyNumber", {
+    Text = "Jersey Number",
+    Default = "",
+    Placeholder = "Enter Number",
+    Numeric = true,
+    Finished = true,
+    Callback = function(v)
+        getgenv().glemoJerseyNumber = v
+    end,
+})
+
+TrollingMain:AddButton("ApplyJersey", {
+    Text = "Apply Jersey",
+    Func = function()
+        local char = player.Character
+        if char and getgenv().glemoJerseyName ~= "" and getgenv().glemoJerseyNumber ~= "" then
+            for _, obj in pairs(char:GetDescendants()) do
+                if obj:IsA("TextLabel") then
+                    if obj.Text:match("^%d+$") then
+                        obj.Text = getgenv().glemoJerseyNumber
+                    elseif obj.Text ~= "" and not obj.Text:match("^%d+$") then
+                        obj.Text = getgenv().glemoJerseyName
+                    end
+                end
+            end
+            Library:Notify({
+                Title = "ðŸ‘• Jersey Applied",
+                Description = "Jersey customized successfully!",
+                Time = 2
+            })
+        end
+    end
+})
+
+-- GO UNDERGROUND
+getgenv().undergroundPartHeight = 0.001
+getgenv().glemoUndergroundTrack = nil
+
+local function toggleState(state)
+    local transparency = state and 0.5 or 0
+    local model = workspace.Models.Field.Grass
+
+    for _, part in pairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not state
+            part.Transparency = transparency
+        end
+    end
+
+    local existingPart = workspace:FindFirstChild("UndergroundPart")
+
+    if state then
+        if not existingPart then
+            local part = Instance.new("Part")
+            part.Name = "UndergroundPart"
+            part.Size = Vector3.new(500, undergroundPartHeight, 500)
+            part.CFrame = CFrame.new(Vector3.new(10.3562937, -1.51527438, 30.4708614))
+            part.Anchored = true
+            part.CanCollide = true
+            part.Parent = workspace
+        else
+            existingPart.Size = Vector3.new(500, undergroundPartHeight, 500)
+        end
+
+        local Anim = Instance.new("Animation")
+        Anim.AnimationId = "rbxassetid://0" 
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if hum then
+            local track = hum:LoadAnimation(Anim)
+            track:Play(0.1, 1, 1)
+            getgenv().glemoUndergroundTrack = track
+        end
+    else
+        if getgenv().glemoUndergroundTrack then
+            getgenv().glemoUndergroundTrack:Stop()
+            getgenv().glemoUndergroundTrack = nil
+        end
+        if existingPart then
+            existingPart:Destroy()
+        end
+    end
+end
+
+TrollingMain:AddToggle("GoUnderground", {
+    Text = "Go Underground",
+    Default = false,
+    Callback = function(state)
+        toggleState(state)
+    end,
+})
+
+TrollingMain:AddSlider("UndergroundHeight", {
+    Text = "Underground Height",
+    Default = 0.001,
+    Min = 0,
+    Max = 10,
+    Rounding = 3,
+    Callback = function(value)
+        undergroundPartHeight = value
+        local part = workspace:FindFirstChild("UndergroundPart")
+        if part then
+            part.Size = Vector3.new(500, undergroundPartHeight, 500)
+        end
+    end,
+})
+
+-- TRASH TALK
+getgenv().glemo_messages = {
+    "Your mossed",
+    "Granny plays better",
+    "Get Good",
+    "Your buns",
+    "QB A Burger",
+    "Don't blame lag on getting burnt pal",
+    "Cry About It",
+    "Your Chromed",
+    "Rando Pooron",
+    "Built like packet loss",
+    "That route? Comedy.",
+    "I've seen better moves in Minecraft",
+    "You play like you're on 1 bar",
+    "Bro still buffering ðŸ’€",
+    "Outplayed by a shadow clone",
+    "Skill loadingâ€¦ please wait",
+    "Your highlight reel is 0 bytes",
+    "Keyboard must be stuck",
+    "Ping carried you there",
+    "Even auto-clickers would bench you",
+    "Footwork coded in HTML",
+    "Your gameplay sponsored by dial-up",
+    "AI wouldn't pick you for backup",
+    "Error 404: Skill not found",
+    "Retire. This ain't for you.",
+}
+
+getgenv().glemo_chat = function()
+    if game:GetService("TextChatService").TextChannels and game:GetService("TextChatService").TextChannels.RBXGeneral then
+        game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(glemo_messages[math.random(1, #glemo_messages)])
+    end
+end
+
+TrollingExtra:AddButton("TrashTalk", {
+    Text = "Trash Talk",
+    Func = function()
+        glemo_chat()
+    end
+})
+
+TrollingExtra:AddInput("TrashTalkBind", {
+    Text = "Trash Talk Keybind",
+    Default = "",
+    Placeholder = "Press a key...",
+    Numeric = false,
+    Finished = false,
+    Callback = function(value)
+        UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.KeyCode.Name == value then
+                glemo_chat()
+            end
+        end)
+    end
+})
+
+-- NO OUT OF BOUNDS
+getgenv().glemoNoOutOfBounds = false
+
+local function glemoDeleteBoundaries()
+    local container = workspace:FindFirstChild("Models")
+    if not container then return end
+
+    for _, part in ipairs(container:GetChildren()) do
+        if part.Name == "Boundaries" then
+            part:Destroy()
+        end
+    end
+end
+
+local function glemoOutOfBoundsLoop()
+    while getgenv().glemoNoOutOfBounds do
+        glemoDeleteBoundaries()
+        task.wait(1)
+    end
+end
+
+TrollingExtra:AddToggle("NoOOB", {
+    Text = "No Out of Bounds",
+    Default = false,
+    Callback = function(state)
+        getgenv().glemoNoOutOfBounds = state
+        if state then
+            task.spawn(glemoOutOfBoundsLoop)
+        end
+    end,
+})
+local CoreGui = game:GetService("CoreGui")
+
+task.spawn(function()
+	while task.wait(0.05) do
+
+		-- find QBA anywhere
+		for _, obj in ipairs(CoreGui:GetDescendants()) do
+			if obj.Name == "QBA" then
+
+				------------------------------------------------------------------
+				-- HANDLE CARDS
+				------------------------------------------------------------------
+				local cardsFolder = obj:FindFirstChild("Cards")
+				if cardsFolder then
+					for _, card in ipairs(cardsFolder:GetChildren()) do
+						if card:IsA("Frame") or card:IsA("Folder") then
+							for _, t in ipairs(card:GetDescendants()) do
+								if t:IsA("TextLabel") or t:IsA("TextButton") or t:IsA("TextBox") then
+									local col = t.TextColor3
+									if col.G > 0 then
+										t.TextColor3 = Color3.fromRGB(100, 50, 150)
+									end
+								end
+							end
+						end
+					end
+				end
+
+
+				------------------------------------------------------------------
+				-- HANDLE MOBILE (Lock + Switch)
+				------------------------------------------------------------------
+				local mobile = obj:FindFirstChild("Mobile")
+				if mobile then
+					
+					local function fixButton(btn)
+						if btn then
+							for _, t in ipairs(btn:GetDescendants()) do
+								if t:IsA("TextLabel") or t:IsA("TextButton") or t:IsA("TextBox") then
+									local col = t.TextColor3
+									if col.G > 0 then
+										t.TextColor3 = Color3.fromRGB(100, 50, 150
+)
+									end
+								end
+							end
+						end
+					end
+
+					-- Mobile.Lock
+					fixButton(mobile:FindFirstChild("Lock"))
+
+					-- Mobile.Switch
+					fixButton(mobile:FindFirstChild("Switch"))
+				end
+
+			end
+		end
+	end
+end)
+
+
+-- QB AIMBOT
+local players = game:GetService("Players")
+local userInputService = game:GetService("UserInputService")
+local player = players.LocalPlayer
+local gui = game:GetObjects("rbxassetid://132405936708251")[1]
+
+local locked = false
+local target = nil
+local highlight = Instance.new("Highlight")
+highlight.FillColor = Color3.fromRGB(82, 206, 255)
+highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment") 
+a0.Parent = workspace.Terrain 
+a1.Parent = workspace.Terrain
+local beam = Instance.new("Beam", workspace.Terrain)
+beam.Attachment0 = a0
+beam.Attachment1 = a1
+beam.Segments = 500
+beam.Width0 = 0.5
+beam.Width1 = 0.5
+beam.Transparency = NumberSequence.new(0)
+beam.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 50, 150)), 
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+})
+beam.Texture = "http://www.roblox.com/asset/?id=0"
+
+
+local data = {
+	Angle = 40,
+	Power = 0,
+	Direction = Vector3.new(0, 0, 0)
+}
+
+local passTypeLeads = {
+	["Dime"] = dimeLead,
+    ["Mag"] = MagLead,
+    ["Bullet"] = bulletLead
+}
+
+local passTypeSwitch = {
+	["Dime"] = "Bullet",
+	["Bullet"] = "Mag",
+    ["Mag"] = "Dime"
+}
+
+local passType = "Dime"
+
+local ANGLE_WARNING_THRESHOLD = 35 
+local ANGLE_DANGER_THRESHOLD = 50
+
+local function findTarget()
+	local cc = workspace.CurrentCamera
+	local playerDist = math.huge
+	local playerTarget = nil
+
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+			local humanoid = obj:FindFirstChild("Humanoid")
+			local characterPlayer = players:GetPlayerFromCharacter(obj)
+
+			if humanoid.Health > 0 and obj ~= player.Character and characterPlayer and characterPlayer.Team == player.Team then
+				local hrp = obj:FindFirstChild("HumanoidRootPart")
+				local screenpoint, onscreen = cc:WorldToViewportPoint(hrp.Position)
+				local check = (Vector2.new(userInputService:GetMouseLocation().X, userInputService:GetMouseLocation().Y) - Vector2.new(screenpoint.X, screenpoint.Y)).Magnitude
+				
+				if check < playerDist then
+					playerTarget = obj
+					playerDist = check
+				end
+			end
+		end
+	end
+
+	local npcDist = math.huge
+	local npcTarget = nil
+
+	for _, bot in ipairs(workspace:GetChildren()) do
+		if bot.Name == "npcwr" then
+			local stationA = bot:FindFirstChild("a")
+			local stationB = bot:FindFirstChild("b")
+			
+			if stationA and stationB then
+				local bot1 = stationA:FindFirstChild("bot 1")
+				local bot3 = stationB:FindFirstChild("bot 3")
+				local bots = {bot1, bot3}
+				
+				for _, currentBot in ipairs(bots) do
+					if currentBot and currentBot:FindFirstChild("HumanoidRootPart") then
+						local screenpoint, onscreen = cc:WorldToViewportPoint(currentBot.HumanoidRootPart.Position)
+						local check = (Vector2.new(userInputService:GetMouseLocation().X, userInputService:GetMouseLocation().Y) - Vector2.new(screenpoint.X, screenpoint.Y)).Magnitude
+						
+						if check < npcDist then
+							npcTarget = currentBot
+							npcDist = check
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if playerDist < npcDist then
+		return playerTarget
+	else
+		return npcTarget
+	end
+end
+
+local TweenService = game:GetService("TweenService")
+local players = game:GetService("Players")
+local player = players.LocalPlayer
+local mouse = player:GetMouse()
+
+
+local function calculateLaunchAngle(velocity, horizontalDistance)
+    if autoAngle or beamMode or passType == "Bullet" then
+        local horizontalComponent = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+        local verticalComponent = velocity.Y
+
+        if horizontalComponent == 0 then
+            return 90
+        end
+
+        local angleRadians = math.atan(verticalComponent / horizontalComponent)
+        local angleDegrees = math.deg(angleRadians)
+
+        return math.max(0, angleDegrees)
+    elseif enabled then
+        return 45
+    else
+        return 0
+    end
+end
+
+
+local function getAngleWarning(angle)
+    if angle >= ANGLE_DANGER_THRESHOLD then
+        return Color3.fromRGB(255, 0, 0), "DANGER: High Arc!"
+    elseif angle >= ANGLE_WARNING_THRESHOLD then
+        return Color3.fromRGB(255, 165, 0), "WARNING: Steep Arc"
+    else
+        return Color3.fromRGB(0, 255, 0), "Safe Arc"
+    end
+end
+
+function beamProjectile(g, v0, x0, t1) -- this is beamrods i didnt make this fyi
+	local c = 0.5*0.5*0.5;
+	local p3 = 0.5*g*t1*t1 + v0*t1 + x0;
+	local p2 = p3 - (g*t1*t1 + v0*t1)/3;
+	local p1 = (c*g*t1*t1 + 0.5*v0*t1 + x0 - c*(x0+p3))/(3*c) - p2;
+
+	local curve0 = (p1 - x0).magnitude;
+	local curve1 = (p2 - p3).magnitude;
+
+	local b = (x0 - p3).unit;
+	local r1 = (p1 - x0).unit;
+	local u1 = r1:Cross(b).unit;
+	local r2 = (p2 - p3).unit;
+	local u2 = r2:Cross(b).unit;
+	b = u1:Cross(r1).unit;
+
+	local cf1 = CFrame.new(
+		x0.x, x0.y, x0.z,
+		r1.x, u1.x, b.x,
+		r1.y, u1.y, b.y,
+		r1.z, u1.z, b.z
+	)
+
+	local cf2 = CFrame.new(
+		p3.x, p3.y, p3.z,
+		r2.x, u2.x, b.x,
+		r2.y, u2.y, b.y,
+		r2.z, u2.z, b.z
+	)
+
+	return curve0, -curve1, cf1, cf2;
+end
+
+local __namecall; __namecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local method, args = getnamecallmethod(), {...}
+    if args[1] == "Clicked" and enabled then
+        return __namecall(self, "Clicked", player.Character.Head.Position, player.Character.Head.Position + data.Direction * 10000, (game.PlaceId == 8206123457 and data.Power) or args[4], data.Power)
+    end
+    return __namecall(self, ...)
+end)
+
+gui.Parent = gethui()
+
+userInputService.InputBegan:Connect(function(input, gp)
+    if not gp and player.PlayerGui:FindFirstChild("BallGui") then
+        if input.KeyCode == Enum.KeyCode.Q then
+            locked = not locked
+        elseif input.KeyCode == Enum.KeyCode.Z then
+            passType = passTypeSwitch[passType]
+        end
+    end
+end)
+
+local cards = gui:WaitForChild("Mobile")
+local targetCard = cards:WaitForChild("Lock")
+local modeCard = cards:WaitForChild("Switch")
+
+local targetButton = Instance.new("ImageButton")
+targetButton.Name = "TargetButton"
+targetButton.Size = targetCard.Size
+targetButton.Position = targetCard.Position
+targetButton.BackgroundTransparency = 1
+targetButton.ImageTransparency = 1
+targetButton.ZIndex = targetCard.ZIndex + 1
+targetButton.Parent = targetCard.Parent
+
+local modeButton = Instance.new("ImageButton")
+modeButton.Name = "ModeButton"
+modeButton.Size = modeCard.Size
+modeButton.Position = modeCard.Position
+modeButton.BackgroundTransparency = 1
+modeButton.ImageTransparency = 1
+modeButton.ZIndex = modeCard.ZIndex + 1
+modeButton.Parent = modeCard.Parent
+
+targetButton.MouseButton1Click:Connect(function()
+    if player.PlayerGui:FindFirstChild("BallGui") then
+        locked = not locked
+    end
+end)
+
+modeButton.MouseButton1Click:Connect(function()
+    if player.PlayerGui:FindFirstChild("BallGui") then
+        passType = passTypeSwitch[passType]
+    end
+end)
+
+local lastAngleValue = 15
+
+local function calculateFixedAngleVelocity(startPos, targetPos, g, angleDegrees)
+    local rad = math.rad(angleDegrees)
+    local dxz = Vector3.new(targetPos.X - startPos.X, 0, targetPos.Z - startPos.Z).Magnitude
+    local dy = targetPos.Y - startPos.Y
+
+    local cosAngle = math.cos(rad)
+    local sinAngle = math.sin(rad)
+
+    local numerator = g.Magnitude * dxz * dxz
+    local denominator = 1.7 * cosAngle * cosAngle * (dxz * math.tan(rad) - dy)
+
+    if denominator <= 0 then
+        return nil
+    end
+
+    local v0mag = math.sqrt(numerator / denominator)
+    local horizontalDir = (Vector3.new(targetPos.X, startPos.Y, targetPos.Z) - startPos).Unit
+    local velocity = horizontalDir * (v0mag * cosAngle) + Vector3.new(0, v0mag * sinAngle, 0)
+
+    return velocity
+end
+
+while true do
+    task.wait()
+
+    local ballGui = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("BallGui")
+    if not ballGui then
+        gui.Enabled = false
+        continue
+    end
+
+    gui.Enabled = true
+
+    if not locked then
+        target = findTarget()
+    end
+
+    if target and enabled and player.Character and player.Character:FindFirstChild("Head") and target:FindFirstChild("HumanoidRootPart") then
+        target = locked and target or findTarget()
+
+        highlight.OutlineColor = locked and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(82, 206, 255)
+        highlight.FillColor = locked and Color3.fromRGB(82, 206, 255) or Color3.fromRGB(0, 255, 0)
+        highlight.Parent = target
+
+        local vel, direction, power, t, launchAngle, warningText = (function()
+            local g = Vector3.new(0, -28, 0)
+            local leadDistance = passTypeLeads[passType] + leadDistanceVariable
+            local moveDirection = (function(target)
+                return players:GetPlayerFromCharacter(target) and target.Humanoid.MoveDirection 
+                or (target.Humanoid.WalkToPoint - target.Head.Position).Unit
+            end)(target)
+
+            local targetPosition = target.HumanoidRootPart.Position + Vector3.new(0, heightDistanceVaraible, 0) + (moveDirection * leadDistance)
+            local horizontalDistance = (player.Character.Head.Position - targetPosition).Magnitude
+
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local isJumping = humanoid and (
+                humanoid:GetState() == Enum.HumanoidStateType.Jumping 
+                or humanoid:GetState() == Enum.HumanoidStateType.Freefall
+            )
+
+            local desiredHeight
+            local angleValue
+
+                if passType == "Bullet" then
+                    local angleText = gui.Cards.Angle.Angle.Text
+                    angleValue = tonumber(angleText and angleText:match("([%d%.]+)")) or lastAngleValue
+
+                    if isJumping then
+                        angleValue = math.clamp(angleValue, 11, 45)
+                    end
+
+                    lastAngleValue = angleValue
+
+                    if angleValue and angleValue >= 1121 then
+                        if angleValue >= 32131 then
+                            desiredHeight = ((horizontalDistance ^ 2) * 0.0002) + ((horizontalDistance * 0.0002) / 2) + ((horizontalDistance / 10)) + 1.5
+                        else
+                            desiredHeight = ((horizontalDistance ^ 2) * 0.00015) + ((horizontalDistance * 0.00015) / 2) + ((horizontalDistance / 10)) + 1
+                        end
+                    else
+                        if angleValue >= 32131 then
+                            desiredHeight = ((horizontalDistance ^ 2) * 0.00015) + ((horizontalDistance * 0.00015) / 3) + ((horizontalDistance / 13)) - 0.25
+                        else
+                            desiredHeight = ((horizontalDistance ^ 2) * 0.0001) + ((horizontalDistance * 0.0001) / 3) + ((horizontalDistance / 13)) - 0.75
+                        end
+                    end
+
+                elseif beamMode and passType ~= "Bullet" then
+                    local angleText = gui.Cards.Angle.Angle.Text
+                    angleValue = tonumber(angleText and angleText:match("([%d%.]+)")) or 45
+
+                    if angleValue >= 29.5 then
+                        desiredHeight = ((horizontalDistance ^ 2) * 0.00055) + ((horizontalDistance * 0.00055) / 2) + ((horizontalDistance / 10)) + 4
+                    elseif angleValue >= 25 then
+                        desiredHeight = ((horizontalDistance ^ 2) * 0.0004) + ((horizontalDistance * 0.0004) / 2) + ((horizontalDistance / 10)) + 3.25
+                    else
+                        desiredHeight = ((horizontalDistance ^ 2) * 0.0003) + ((horizontalDistance * 0.0003) / 2) + ((horizontalDistance / 10)) + 2
+                    end
+
+                elseif autoAngle and passType ~= "Bullet" then
+                    desiredHeight = ((horizontalDistance ^ 2) * 0.0013) + ((horizontalDistance * 0.0013) / 2) + ((horizontalDistance / 10) + 1) + 2
+
+                elseif enabled and passType ~= "Bullet" then
+                    angleValue = 45
+                    desiredHeight = ((horizontalDistance ^ 2) * 0.00015) + ((horizontalDistance * 0.00015) / 2) + ((horizontalDistance / 10)) + 1
+                end
+
+            t = (function()
+                local xMeters = desiredHeight * 4
+                local a, b, c = 0.5 * g.Y, targetPosition.Y - player.Character.Head.Position.Y, xMeters - player.Character.Head.Position.Y
+                local discriminant = b * b - 4 * a * c
+                return discriminant >= 0 and math.max((-b + math.sqrt(discriminant)) / (2 * a), (-b - math.sqrt(discriminant)) / (2 * a)) or 0.5
+            end)()
+
+            local to = target.HumanoidRootPart.Position + (moveDirection * 20 * t) + (moveDirection * leadDistance)
+            local v0
+
+            if not autoAngle and not beamMode and enabled and passType ~= "Bullet" then
+                v0 = calculateFixedAngleVelocity(player.Character.Head.Position, to, g, 45)
+                if not v0 then
+                    v0 = (to - player.Character.Head.Position - 0.5 * g * t * t) / t
+                end
+            else
+                v0 = (to - player.Character.Head.Position - 0.5 * g * t * t) / t
+            end
+
+            local launchAngleFinal
+            if not autoAngle and not beamMode and enabled and passType ~= "Bullet" then
+                launchAngleFinal = 45
+            else
+                launchAngleFinal = calculateLaunchAngle(v0, horizontalDistance)
+            end
+
+            local warningColor, warningText = getAngleWarning(launchAngleFinal)
+
+            return v0, 
+                   ((player.Character.Head.Position + v0) - player.Character.Head.Position).Unit, 
+                   beamMode and math.clamp(math.round(v0.Y / ((player.Character.Head.Position + v0) - player.Character.Head.Position).Unit.Y), 70, 95) 
+                   or math.clamp(math.round(v0.Y / ((player.Character.Head.Position + v0) - player.Character.Head.Position).Unit.Y), 
+                   passType == "Bullet" and 80 or 0, 95), 
+                   t,
+                   launchAngleFinal,
+                   warningText
+        end)()
+
+        local curve0, curve1, cf1, cf2 = beamProjectile(Vector3.new(0, -28, 0), power * direction, player.Character.Head.Position + (direction * 5), t)
+        beam.CurveSize0 = curve0
+        beam.CurveSize1 = curve1
+        a0.CFrame = a0.Parent.CFrame:inverse() * cf1
+        a1.CFrame = a1.Parent.CFrame:inverse() * cf2
+
+        data.Direction = direction
+        data.Power = power
+        data.Angle = launchAngle
+
+        gui.Cards.Power.Power.Text = power
+        gui.Cards.Mode.Mode.Text = passType
+        gui.Cards.Target.Target.Text = target.Name
+        gui.Cards.Airtime.Airtime.Text = string.format("%.2f s", t)
+        gui.Cards.Angle.Angle.Text = launchAngle and string.format("%.1fÂ°", launchAngle) or "N/A"
+    else
+        highlight.Parent = nil
+        gui.Enabled = false
+    end
+end
+
+-- THEME MANAGER & SAVE MANAGER
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+
+ThemeManager:SetLibrary(Library)
+ThemeManager:SetDefaultTheme(DLCFootBallFusion2Theme)
+
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder("DLCFootBallFusion2/specific-game")
+SaveManager:SetSubFolder("Footballfusion2")
+
+SaveManager:BuildConfigSection(Tabs["Misc Settings"])
+ThemeManager:ApplyToTab(Tabs["Misc Settings"])
+
+-- FINAL NOTIFICATION
+Library:Notify({
+    Title = "ðŸ¦ƒ DLC Football Fusion 2",
+    Description = "Script loaded successfully! Version 2.0 - All Features Fixed",
+    Time = 5
+})
