@@ -2,82 +2,63 @@ if game.PlaceId == 8204899140 then
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local LocalPlayer = Players.LocalPlayer
-    local HandshakeRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CharacterSoundEvent")
+    local HandshakeRemote = ReplicatedStorage.Remotes.CharacterSoundEvent
     local GarbageCollection = getgc(true)
+
     local HandshakeData = nil
     local HandshakeFunction = nil
     local AnticheatString = nil
+
     local function Iterator(t, f)
         for k,v in pairs(t) do f(k,v) end
     end
-    local FastWait = function(d) return task.wait(d or (1/240)) end
 
-    local candidates = {}
-    for i=1, #GarbageCollection do
-        local item = GarbageCollection[i]
-        local t = type(item)
-        if t == "table" then
-            local mt = getrawmetatable(item)
-            if mt and rawget(mt, "__call") then
-                HandshakeFunction = item
-            end
-        elseif t == "function" then
-            if #candidates < 800 then
-                candidates[#candidates+1] = item
-            end
-        end
-    end
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
 
-    if HandshakeData and getrawmetatable(HandshakeData) then
-        local mt = getrawmetatable(HandshakeData)
-        if mt then
-            mt.__tostring = nil
-            mt.__metatable = nil
-            mt.__index = nil
-            mt.__eq = nil
-        end
-    end
-
-    local mt_game = getrawmetatable(game)
-    setreadonly(mt_game, false)
-    local old_namecall = mt_game.__namecall
-    mt_game.__namecall = newcclosure(function(self, ...)
+    local old_namecall = mt.__namecall
+    mt.__namecall = newcclosure(function(self, ...)
         local m = getnamecallmethod()
         local a = {...}
-        if not checkcaller() and m == "fireServer" and self.Name == "CharacterSoundEvent" then
-            if type(a[1]) == "string" and string.find(a[1], "AC") then
-                if rawequal(type(a[2]), "table") then
-                    AnticheatString = a[1]
-                    HandshakeData = a[2]
+        if not checkcaller() and m == "fireServer" and self == HandshakeRemote then
+            local a1 = a[1]
+            local a2 = a[2]
+            if type(a1) == "string" and a1:find("AC") then
+                if rawequal(type(a2), "table") then
+                    AnticheatString = a1
+                    HandshakeData = a2
                     return task.wait(9e9)
-                elseif a[2] == "error" then
+                elseif a2 == "error" then
                     return coroutine.yield()
                 end
             end
         end
         return old_namecall(self, ...)
     end)
-    setreadonly(mt_game, true)
 
-    local function safe_debug_info(f, what)
-        local ok, res = pcall(debug.info, f, what)
-        if ok then return res end
-        return nil
-    end
+    setreadonly(mt, true)
 
-    local playermodule_lines = {42,51,61}
-    for i=1, #candidates do
-        local fn = candidates[i]
-        local s = safe_debug_info(fn, "s")
-        if s and string.find(s, "PlayerModule.LocalScript") then
-            local l = safe_debug_info(fn, "l")
-            if l and table.find(playermodule_lines, l) then
-                hookfunction(fn, function(...) return task.wait(9e9) end)
+    Iterator(GarbageCollection, function(_, item)
+        if type(item) == "table" then
+            local mt2 = getrawmetatable(item)
+            if mt2 and rawget(mt2, "__call") then
+                HandshakeFunction = item
             end
+        end
+    end)
+
+    if HandshakeData then
+        local mt2 = getrawmetatable(HandshakeData)
+        if mt2 then
+            mt2.__tostring = nil
+            mt2.__metatable = nil
+            mt2.__index = nil
+            mt2.__eq = nil
         end
     end
 
-    local old_debug = hookfunction(debug.info, newcclosure(function(...)
+    local old_debug
+    old_debug = hookfunction(debug.info, newcclosure(function(...)
         local a = {...}
         if not checkcaller() and a[1] == 2 and a[2] == "s" then
             return "LocalScript"
@@ -85,21 +66,34 @@ if game.PlaceId == 8204899140 then
         return old_debug(...)
     end))
 
-    if HandshakeFunction then
-        local hf_mt = getrawmetatable(HandshakeFunction)
-        local orig_call = rawget(hf_mt, "__call")
-        rawset(hf_mt, "__tostring", nil)
-        rawset(hf_mt, "__call", function(self, ...)
-            local v1,v2,v3,v4,v5 = ...
-            if
-                (v1 == 655 and v2 == 775 and v3 == 724 and v4 == 633 and v5 == 891) or
-                (v1 == 760 and v2 == 760 and v3 == 771 and v4 == 665 and v5 == 898) or
-                (v1 == 660 and v2 == 759 and v3 == 751 and v4 == 863 and v5 == 771)
-            then
-                return orig_call(self, ...)
+    local mtH = getrawmetatable(HandshakeFunction)
+    local call = rawget(mtH, "__call")
+    rawset(mtH, "__tostring", nil)
+
+    rawset(mtH, "__call", function(self, ...)
+        local v1,v2,v3,v4,v5 = ...
+        if
+            (v1 == 655 and v2 == 775 and v3 == 724 and v4 == 633 and v5 == 891) or
+            (v1 == 760 and v2 == 760 and v3 == 771 and v4 == 665 and v5 == 898) or
+            (v1 == 660 and v2 == 759 and v3 == 751 and v4 == 863 and v5 == 771)
+        then
+            return call(self, ...)
+        end
+    end)
+
+    Iterator(GarbageCollection, function(_, fn)
+        if type(fn) == "function" then
+            local s = debug.info(fn, "s")
+            if s and s:find("PlayerModule.LocalScript") then
+                local l = debug.info(fn, "l")
+                if l == 42 or l == 51 or l == 61 then
+                    hookfunction(fn, function(...)
+                        return task.wait(9e9)
+                    end)
+                end
             end
-        end)
-    end
+        end
+    end)
 
     task.spawn(function()
         while task.wait(0.5) do
@@ -113,15 +107,6 @@ if game.PlaceId == 8204899140 then
     local hrp = char:WaitForChild("HumanoidRootPart")
     local lastPos = LocalPlayer:WaitForChild("LastPos")
     local pos = hrp.Position.X
-
-    task.spawn(function()
-        while task.wait(0.15) do
-            local c = LocalPlayer.Character
-            if c and c:FindFirstChild("HumanoidRootPart") then
-                pos = c.HumanoidRootPart.Position.X
-            end
-        end
-    end)
 
     local old_index
     old_index = hookmetamethod(game, "__index", function(self, key)
@@ -139,10 +124,6 @@ if game.PlaceId == 8204899140 then
         return old_newindex(self, key, value)
     end)
 end
-
-task.wait()
-
-print("ac raped")
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
