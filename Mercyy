@@ -1,5 +1,3 @@
---> bypass
-loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/5cffc729808b8e2eecffeb5a232a8c14.lua"))()
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
@@ -63,6 +61,7 @@ local NoobAvatar = Tabs.Meme:AddLeftGroupbox("NoobAvatar")
 local DiscoScreen = Tabs.Meme:AddRightGroupbox("DiscoScreen")
 local FlameHead = Tabs.Meme:AddLeftGroupbox("FlameHead")
 
+Updates:AddLabel("• Added full Anticheat Bypass by Null")
 Updates:AddLabel("• Added Full QB Aimbot System")
 Updates:AddLabel("• Added CFrame WalkSpeed")
 Updates:AddLabel("• Added Magnets with Hitbox")
@@ -3081,3 +3080,7 @@ Library:Notify({
     Description = "Script loaded successfully! Version 2.0 - All Features Fixed",
     Time = 5
 })
+
+
+--> bypass
+loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/5cffc729808b8e2eecffeb5a232a8c14.lua"))()
